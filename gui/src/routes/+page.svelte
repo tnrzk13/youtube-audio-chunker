@@ -159,19 +159,6 @@
 	.settings-link:hover {
 		text-decoration: underline;
 	}
-	.theme-toggle {
-		background: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		font-size: var(--font-size-lg);
-		padding: 0.15rem 0.4rem;
-		line-height: 1;
-		transition: all 0.15s;
-	}
-	.theme-toggle:hover {
-		background: var(--color-bg-hover);
-	}
 	.dashboard {
 		display: grid;
 		grid-template-columns: 1fr auto 1fr auto 1fr;

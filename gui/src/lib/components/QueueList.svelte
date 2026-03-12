@@ -37,29 +37,4 @@
 {/if}
 
 <style>
-	.empty {
-		padding: 1rem;
-		color: var(--color-text-muted);
-		font-size: var(--font-size-base);
-		text-align: center;
-	}
-	.btn-icon {
-		background: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		padding: 0.15rem 0.4rem;
-		font-size: var(--font-size-sm);
-		color: var(--color-text-muted);
-		transition: all 0.15s;
-	}
-	.btn-icon:hover:not(:disabled) {
-		background: var(--color-danger-bg);
-		color: var(--color-danger);
-		border-color: var(--color-danger);
-	}
-	.btn-icon:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
 </style>
