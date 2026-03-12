@@ -56,7 +56,26 @@ def main() -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="youtube-audio-chunker",
-        description="Download YouTube audio, split into chunks, sideload to Garmin",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Download YouTube audio, split into chunks, and sideload to a Garmin watch.",
+        epilog=(
+            "typical workflow:\n"
+            "  1. youtube-audio-chunker add <url>       Queue a video or playlist\n"
+            "  2. youtube-audio-chunker sync             Download, chunk, and transfer to watch\n"
+            "\n"
+            "shortcut (add + sync in one step):\n"
+            "  youtube-audio-chunker download <url>\n"
+            "\n"
+            "content types:\n"
+            "  music       Split into 5-min chunks, stored in MUSIC/ (default)\n"
+            "  podcast     Kept as a single file, stored in Podcasts/\n"
+            "  audiobook   Kept as a single file, stored in Audiobooks/\n"
+            "\n"
+            f"library path: {LIBRARY_PATH}\n"
+            f"output dir:   {OUTPUT_DIR}\n"
+            "\n"
+            "run 'youtube-audio-chunker <command> --help' for command-specific options"
+        ),
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -71,38 +90,77 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _add_add_parser(subparsers) -> None:
-    p = subparsers.add_parser("add", help="Add URLs to processing queue")
+    p = subparsers.add_parser(
+        "add",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Queue URLs for later processing",
+        description=(
+            "Add YouTube video or playlist URLs to the processing queue.\n"
+            "Playlists are automatically expanded into individual videos."
+        ),
+        epilog=(
+            "examples:\n"
+            "  youtube-audio-chunker add https://youtube.com/watch?v=abc\n"
+            "  youtube-audio-chunker add --type podcast URL1 URL2\n"
+            "  youtube-audio-chunker add --type audiobook https://youtube.com/playlist?list=PL..."
+        ),
+    )
     p.add_argument("urls", nargs="+", help="YouTube video or playlist URLs")
     p.add_argument(
         "--type",
         choices=[t.value for t in ContentType],
         default=ContentType.MUSIC.value,
         help="Content type: music (chunked, MUSIC/), podcast (single, Podcasts/), "
-        "audiobook (single, Audio books/). Default: music",
+        "audiobook (single, Audiobooks/). Default: music",
     )
 
 
 def _add_sync_parser(subparsers) -> None:
-    p = subparsers.add_parser("sync", help="Process queue, chunk, transfer to watch")
+    p = subparsers.add_parser(
+        "sync",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Download queued items, chunk, and transfer to watch",
+        description=(
+            "Process all queued URLs: download audio, split into chunks\n"
+            "(music only), tag with ID3 metadata, and copy to Garmin watch."
+        ),
+        epilog=(
+            "examples:\n"
+            "  youtube-audio-chunker sync\n"
+            "  youtube-audio-chunker sync --no-transfer\n"
+            "  youtube-audio-chunker sync --chunk-duration 600 --artist 'Joe Rogan'"
+        ),
+    )
     p.add_argument(
-        "--chunk-duration", type=int, default=None,
-        help=f"Force chunking at this duration in seconds "
+        "--chunk-duration", type=int, default=None, metavar="SECONDS",
+        help=f"chunk duration in seconds "
         f"(default: {DEFAULT_CHUNK_DURATION_SECONDS} for music, disabled for podcast/audiobook)",
     )
-    p.add_argument("--artist", help="Override artist name for ID3 tags")
+    p.add_argument("--artist", metavar="NAME", help="override artist name for ID3 tags")
     p.add_argument(
         "--keep-full", action="store_true",
-        help="Keep full audio file after chunking",
+        help="keep the full audio file after chunking",
     )
     p.add_argument(
         "--no-transfer", action="store_true",
-        help="Process but don't copy to watch",
+        help="download and chunk but skip copying to watch",
     )
 
 
 def _add_download_parser(subparsers) -> None:
     p = subparsers.add_parser(
-        "download", help="Add URLs and immediately download (add + sync in one step)",
+        "download",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Add URLs and immediately process (add + sync)",
+        description=(
+            "Shortcut that combines 'add' and 'sync' in one step.\n"
+            "Queues the given URLs, then downloads, chunks, and transfers."
+        ),
+        epilog=(
+            "examples:\n"
+            "  youtube-audio-chunker download https://youtube.com/watch?v=abc\n"
+            "  youtube-audio-chunker download --type podcast --no-transfer URL"
+        ),
     )
     p.add_argument("urls", nargs="+", help="YouTube video or playlist URLs")
     p.add_argument(
@@ -110,41 +168,74 @@ def _add_download_parser(subparsers) -> None:
         choices=[t.value for t in ContentType],
         default=ContentType.MUSIC.value,
         help="Content type: music (chunked, MUSIC/), podcast (single, Podcasts/), "
-        "audiobook (single, Audio books/). Default: music",
+        "audiobook (single, Audiobooks/). Default: music",
     )
     p.add_argument(
-        "--chunk-duration", type=int, default=None,
-        help=f"Force chunking at this duration in seconds "
+        "--chunk-duration", type=int, default=None, metavar="SECONDS",
+        help=f"chunk duration in seconds "
         f"(default: {DEFAULT_CHUNK_DURATION_SECONDS} for music, disabled for podcast/audiobook)",
     )
-    p.add_argument("--artist", help="Override artist name for ID3 tags")
+    p.add_argument("--artist", metavar="NAME", help="override artist name for ID3 tags")
     p.add_argument(
         "--keep-full", action="store_true",
-        help="Keep full audio file after chunking",
+        help="keep the full audio file after chunking",
     )
     p.add_argument(
         "--no-transfer", action="store_true",
-        help="Process but don't copy to watch",
+        help="download and chunk but skip copying to watch",
     )
 
 
 def _add_transfer_parser(subparsers) -> None:
     subparsers.add_parser(
-        "transfer", help="Transfer unsynced local episodes to Garmin watch",
+        "transfer",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Copy unsynced local episodes to Garmin watch",
+        description=(
+            "Transfer any locally downloaded episodes that haven't been\n"
+            "copied to the Garmin watch yet. The watch must be connected via MTP."
+        ),
     )
 
 
 def _add_list_parser(subparsers) -> None:
-    p = subparsers.add_parser("list", help="Show episodes by location")
-    p.add_argument("--queued", action="store_true", help="Show queued URLs only")
-    p.add_argument("--local", action="store_true", help="Show local episodes only")
-    p.add_argument("--watch", action="store_true", help="Show watch episodes only")
+    p = subparsers.add_parser(
+        "list",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Show episodes by location",
+        description=(
+            "Display episodes grouped by location: queued, local, and watch.\n"
+            "Shows all sections by default, or filter to a specific one."
+        ),
+        epilog=(
+            "examples:\n"
+            "  youtube-audio-chunker list\n"
+            "  youtube-audio-chunker list --watch\n"
+            "  youtube-audio-chunker list --queued --local"
+        ),
+    )
+    p.add_argument("--queued", action="store_true", help="show only queued (not yet downloaded) URLs")
+    p.add_argument("--local", action="store_true", help="show only locally downloaded episodes")
+    p.add_argument("--watch", action="store_true", help="show only episodes on the Garmin watch")
 
 
 def _add_remove_parser(subparsers) -> None:
-    p = subparsers.add_parser("remove", help="Remove episode by title")
-    p.add_argument("title", help="Episode title to remove")
-    p.add_argument("--watch", action="store_true", help="Remove from Garmin only")
+    p = subparsers.add_parser(
+        "remove",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Remove an episode by title",
+        description=(
+            "Remove an episode from the local library (queue + files) or\n"
+            "from the Garmin watch only (with --watch)."
+        ),
+        epilog=(
+            "examples:\n"
+            "  youtube-audio-chunker remove 'My Episode Title'\n"
+            "  youtube-audio-chunker remove --watch 'My Episode Title'"
+        ),
+    )
+    p.add_argument("title", help="episode title (use quotes if it contains spaces)")
+    p.add_argument("--watch", action="store_true", help="remove from Garmin watch only (keep local copy)")
 
 
 def _handle_add(args) -> None:
