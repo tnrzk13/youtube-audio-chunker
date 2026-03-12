@@ -59,7 +59,7 @@ def copy_to_garmin(
     content_type: ContentType = ContentType.MUSIC,
 ) -> Path:
     target_dir = garmin_mount / GARMIN_DIRS[content_type]
-    target_dir.mkdir(exist_ok=True)
+    _ensure_dir(target_dir)
 
     source_size = _dir_size_bytes(source_dir)
     available = get_available_space_bytes(garmin_mount)
@@ -74,10 +74,10 @@ def copy_to_garmin(
 
     if is_single_file:
         dest = target_dir / files[0].name
-        shutil.copy2(files[0], dest)
+        _copy_file(files[0], dest)
     else:
         dest = target_dir / source_dir.name
-        shutil.copytree(source_dir, dest)
+        _copy_tree(source_dir, dest)
 
     return dest
 
@@ -88,12 +88,12 @@ def remove_from_garmin(folder_name: str, garmin_mount: Path) -> None:
         # Check for a subfolder match
         target = parent / folder_name
         if target.exists() and target.is_dir():
-            shutil.rmtree(target)
+            _remove_path(target)
             return
         # Check for a single-file match (folder_name.mp3)
         target_file = parent / f"{folder_name}.mp3"
         if target_file.exists():
-            target_file.unlink()
+            _remove_path(target_file)
             return
 
     searched = ", ".join(GARMIN_DIRS.values())
@@ -202,6 +202,57 @@ def _is_removable_macos(volume: Path) -> bool:
         if "Removable Media" in line and "Yes" in line:
             return True
     return False
+
+
+def _remove_path(path: Path) -> None:
+    if _is_mtp_path(path):
+        result = subprocess.run(
+            ["gio", "trash", str(path)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise GarminError(f"gio trash failed: {result.stderr.strip()}")
+    elif path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+
+
+def _is_mtp_path(path: Path) -> bool:
+    return "gvfs/mtp:" in str(path)
+
+
+def _ensure_dir(path: Path) -> None:
+    if path.exists():
+        return
+    if _is_mtp_path(path):
+        subprocess.run(["gio", "mkdir", str(path)], check=True)
+    else:
+        path.mkdir(exist_ok=True)
+
+
+def _copy_file(src: Path, dest: Path) -> None:
+    if _is_mtp_path(dest):
+        result = subprocess.run(
+            ["gio", "copy", str(src), str(dest)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise GarminError(f"gio copy failed: {result.stderr.strip()}")
+    else:
+        shutil.copy2(src, dest)
+
+
+def _copy_tree(source_dir: Path, dest_dir: Path) -> None:
+    if _is_mtp_path(dest_dir):
+        _ensure_dir(dest_dir)
+        for f in source_dir.rglob("*"):
+            if f.is_file():
+                _copy_file(f, dest_dir / f.name)
+    else:
+        shutil.copytree(source_dir, dest_dir)
 
 
 def _dir_size_bytes(path: Path) -> int:

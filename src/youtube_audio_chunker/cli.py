@@ -27,7 +27,7 @@ from youtube_audio_chunker.library import (
     add_to_queue,
     remove_episode,
 )
-from youtube_audio_chunker.pipeline import process_queue, SyncOptions
+from youtube_audio_chunker.pipeline import process_queue, transfer_unsynced, SyncOptions
 
 
 def main() -> None:
@@ -43,6 +43,7 @@ def main() -> None:
             "add": _handle_add,
             "sync": _handle_sync,
             "download": _handle_download,
+            "transfer": _handle_transfer,
             "list": _handle_list,
             "remove": _handle_remove,
         }
@@ -62,6 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_add_parser(subparsers)
     _add_sync_parser(subparsers)
     _add_download_parser(subparsers)
+    _add_transfer_parser(subparsers)
     _add_list_parser(subparsers)
     _add_remove_parser(subparsers)
 
@@ -126,6 +128,12 @@ def _add_download_parser(subparsers) -> None:
     )
 
 
+def _add_transfer_parser(subparsers) -> None:
+    subparsers.add_parser(
+        "transfer", help="Transfer unsynced local episodes to Garmin watch",
+    )
+
+
 def _add_list_parser(subparsers) -> None:
     p = subparsers.add_parser("list", help="Show episodes by location")
     p.add_argument("--queued", action="store_true", help="Show queued URLs only")
@@ -162,6 +170,10 @@ def _handle_add(args) -> None:
 def _handle_download(args) -> None:
     _handle_add(args)
     _handle_sync(args)
+
+
+def _handle_transfer(_args) -> None:
+    transfer_unsynced()
 
 
 def _handle_sync(args) -> None:

@@ -25,6 +25,7 @@ from youtube_audio_chunker.library import (
     save_library,
     move_to_downloaded,
     mark_synced,
+    DownloadedEpisode,
     Library,
     QueueEntry,
 )
@@ -225,3 +226,47 @@ def _confirm_removal() -> bool:
         return answer.strip().lower() == "y"
     except (EOFError, KeyboardInterrupt):
         return False
+
+
+def transfer_unsynced(library_path: Path = LIBRARY_PATH) -> None:
+    """Transfer all downloaded-but-not-synced episodes to the watch."""
+    library = load_library(library_path)
+    unsynced = [ep for ep in library.downloaded if ep.synced_at is None]
+
+    if not unsynced:
+        print("No unsynced episodes to transfer.")
+        return
+
+    garmin_mount = find_garmin_mount()
+    if garmin_mount is None:
+        print("No Garmin watch detected.")
+        return
+
+    for ep in unsynced:
+        _transfer_local_episode(library, ep, garmin_mount)
+
+    save_library(library, library_path)
+
+
+def _transfer_local_episode(
+    library: Library, ep: DownloadedEpisode, garmin_mount: Path
+) -> None:
+    episode_dir = OUTPUT_DIR / ep.folder_name
+    if not episode_dir.exists():
+        print(f"Skipping '{ep.title}' - local files not found.")
+        return
+
+    content_type = ContentType(ep.content_type)
+    needed_bytes = sum(f.stat().st_size for f in episode_dir.rglob("*") if f.is_file())
+    available = get_available_space_bytes(garmin_mount)
+
+    if needed_bytes > available:
+        freed = _try_free_space(needed_bytes, available, garmin_mount)
+        if not freed:
+            print(f"Skipping transfer of '{ep.title}' - not enough space.")
+            return
+
+    print(f"Transferring: {ep.title}")
+    copy_to_garmin(episode_dir, garmin_mount, content_type)
+    mark_synced(library, ep.video_id)
+    print(f"Synced: {ep.title}")
