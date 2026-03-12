@@ -20,6 +20,11 @@
 		padding: 0.5rem 1rem;
 		background: var(--color-bg-progress);
 		border-top: 1px solid var(--color-border);
+		animation: slideUp 0.2s ease-out;
+	}
+	@keyframes slideUp {
+		from { transform: translateY(100%); opacity: 0; }
+		to { transform: translateY(0); opacity: 1; }
 	}
 	.progress-message {
 		font-size: var(--font-size-md);

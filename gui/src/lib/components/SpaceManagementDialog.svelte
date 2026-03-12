@@ -63,6 +63,7 @@
 		align-items: center;
 		justify-content: center;
 		z-index: 900;
+		animation: fadeIn 0.15s ease-out;
 	}
 	.dialog {
 		background: var(--color-bg-panel);
@@ -70,6 +71,15 @@
 		padding: 1.5rem;
 		width: min(90%, 420px);
 		box-shadow: var(--shadow-dialog);
+		animation: scaleUp 0.2s ease-out;
+	}
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+	@keyframes scaleUp {
+		from { transform: scale(0.95); opacity: 0; }
+		to { transform: scale(1); opacity: 1; }
 	}
 	h3 {
 		margin: 0 0 0.5rem;

@@ -59,6 +59,13 @@
 
   /* Shadows */
   --shadow-dialog: 0 4px 24px rgba(0, 0, 0, 0.2);
+  --shadow-toolbar: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-footer: 0 -1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-column: 1px 0 3px rgba(0, 0, 0, 0.06);
+
+  /* Layout */
+  --color-bg-footer: #f8f9fa;
+  --bg-page-gradient: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
 
   /* Font sizes */
   --font-size-xs: 0.7rem;
@@ -123,6 +130,13 @@
 
   /* Shadows */
   --shadow-dialog: 0 4px 24px rgba(0, 0, 0, 0.5);
+  --shadow-toolbar: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-footer: 0 -1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-column: 1px 0 3px rgba(0, 0, 0, 0.2);
+
+  /* Layout */
+  --color-bg-footer: #1a1a2a;
+  --bg-page-gradient: linear-gradient(180deg, #121212 0%, #0e0e0e 100%);
 }
 
 [data-theme="dark"] input,
