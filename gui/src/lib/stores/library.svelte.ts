@@ -49,3 +49,12 @@ export async function processQueue(options: {
 	await refreshLibrary();
 	return result;
 }
+
+export async function cancelProcessing() {
+	await invoke('cancel');
+}
+
+export async function cancelAndRemove(videoId: string) {
+	await invoke('cancel');
+	await removeEpisode(videoId);
+}

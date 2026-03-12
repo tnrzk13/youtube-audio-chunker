@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 import traceback
 from dataclasses import asdict
 from pathlib import Path
@@ -42,6 +43,12 @@ PARSE_ERROR = -32700
 METHOD_NOT_FOUND = -32601
 INTERNAL_ERROR = -32603
 
+_cancel_event = threading.Event()
+_stdout_lock = threading.Lock()
+
+# Methods that run in a background thread so the main loop stays responsive
+_ASYNC_METHODS = {"process_queue", "transfer_unsynced"}
+
 
 def main() -> None:
     """Read JSON-RPC requests from stdin, dispatch, write responses to stdout."""
@@ -69,6 +76,18 @@ def _dispatch(request: dict) -> None:
             _write_error(request_id, METHOD_NOT_FOUND, f"Unknown method: {method}")
         return
 
+    if method in _ASYNC_METHODS:
+        _cancel_event.clear()
+        thread = threading.Thread(
+            target=_run_in_thread, args=(handler, params, request_id)
+        )
+        thread.daemon = True
+        thread.start()
+    else:
+        _run_handler(handler, params, request_id)
+
+
+def _run_handler(handler, params: dict, request_id: Any) -> None:
     try:
         result = handler(params)
         if request_id is not None:
@@ -77,9 +96,25 @@ def _dispatch(request: dict) -> None:
         code = ERROR_CODES.get(type(exc), INTERNAL_ERROR)
         if request_id is not None:
             _write_error(request_id, code, str(exc))
-    except Exception as exc:
+    except Exception:
         if request_id is not None:
             _write_error(request_id, INTERNAL_ERROR, traceback.format_exc())
+
+
+def _run_in_thread(handler, params: dict, request_id: Any) -> None:
+    _run_handler(handler, params, request_id)
+
+
+def _is_cancelled() -> bool:
+    return _cancel_event.is_set()
+
+
+# --- Cancel ---
+
+
+def _handle_cancel(params: dict) -> dict:
+    _cancel_event.set()
+    return {"cancelled": True}
 
 
 # --- Read methods ---
@@ -187,15 +222,34 @@ def _handle_process_queue(params: dict) -> dict:
     total = len(queue_snapshot)
 
     for i, entry in enumerate(queue_snapshot):
+        if _is_cancelled():
+            _notify_progress("cancelled", "", "Processing cancelled", 0)
+            break
+
         content_type = ContentType(entry.content_type)
+
+        # Check if this entry was removed while we were processing others
+        library = load_library()
+        still_queued = any(e.video_id == entry.video_id for e in library.queue)
+        if not still_queued:
+            continue
 
         # Download
         _notify_progress("download", entry.video_id, f"Downloading: {entry.title}", 0)
+
+        if _is_cancelled():
+            _notify_progress("cancelled", "", "Processing cancelled", 0)
+            break
+
         try:
             results = download_audio(entry.url, OUTPUT_DIR)
         except DownloadError as exc:
             _notify_progress("error", entry.video_id, str(exc), 0)
             continue
+
+        if _is_cancelled():
+            _notify_progress("cancelled", "", "Processing cancelled", 0)
+            break
 
         if not results:
             continue
@@ -225,6 +279,7 @@ def _handle_process_queue(params: dict) -> dict:
             tag_single(dest, title=dl.title, artist=artist, content_type=content_type)
 
         # Update library
+        library = load_library()
         total_size = sum(
             f.stat().st_size for f in episode_dir.rglob("*") if f.is_file()
         )
@@ -242,6 +297,10 @@ def _handle_process_queue(params: dict) -> dict:
         _notify_progress(
             "process", entry.video_id, f"Processed {i + 1}/{total}", step_pct
         )
+
+        if _is_cancelled():
+            _notify_progress("cancelled", "", "Processing cancelled", 0)
+            break
 
         # Transfer
         if no_transfer:
@@ -312,6 +371,9 @@ def _handle_transfer_unsynced(params: dict) -> dict:
 
     transferred_count = 0
     for ep in unsynced:
+        if _is_cancelled():
+            break
+
         episode_dir = OUTPUT_DIR / ep.folder_name
         if not episode_dir.exists():
             _notify_progress("skip", ep.video_id, f"Files not found: {ep.title}", 0)
@@ -413,8 +475,9 @@ def _select_for_removal(episodes: list, deficit_bytes: int) -> list:
 
 def _write_result(request_id: int | str, result: Any) -> None:
     response = {"jsonrpc": "2.0", "result": result, "id": request_id}
-    sys.stdout.write(json.dumps(response) + "\n")
-    sys.stdout.flush()
+    with _stdout_lock:
+        sys.stdout.write(json.dumps(response) + "\n")
+        sys.stdout.flush()
 
 
 def _write_error(request_id: int | str | None, code: int, message: str) -> None:
@@ -423,8 +486,9 @@ def _write_error(request_id: int | str | None, code: int, message: str) -> None:
         "error": {"code": code, "message": message},
         "id": request_id,
     }
-    sys.stdout.write(json.dumps(response) + "\n")
-    sys.stdout.flush()
+    with _stdout_lock:
+        sys.stdout.write(json.dumps(response) + "\n")
+        sys.stdout.flush()
 
 
 def _notify_progress(
@@ -441,18 +505,21 @@ def _notify_progress(
             "percent": percent,
         },
     }
-    sys.stdout.write(json.dumps(notification) + "\n")
-    sys.stdout.flush()
+    with _stdout_lock:
+        sys.stdout.write(json.dumps(notification) + "\n")
+        sys.stdout.flush()
 
 
 _NEXT_REVERSE_ID = 1000
+_reverse_lock = threading.Lock()
 
 
 def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
     """Send a reverse JSON-RPC request to the frontend for user confirmation."""
     global _NEXT_REVERSE_ID
-    request_id = _NEXT_REVERSE_ID
-    _NEXT_REVERSE_ID += 1
+    with _reverse_lock:
+        request_id = _NEXT_REVERSE_ID
+        _NEXT_REVERSE_ID += 1
 
     request = {
         "jsonrpc": "2.0",
@@ -460,8 +527,9 @@ def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
         "params": {"episodes": episodes, "deficit_bytes": deficit_bytes},
         "id": request_id,
     }
-    sys.stdout.write(json.dumps(request) + "\n")
-    sys.stdout.flush()
+    with _stdout_lock:
+        sys.stdout.write(json.dumps(request) + "\n")
+        sys.stdout.flush()
 
     # Read the response from stdin
     for line in sys.stdin:
@@ -491,6 +559,7 @@ _METHODS = {
     "transfer_unsynced": _handle_transfer_unsynced,
     "get_settings": _handle_get_settings,
     "save_settings": _handle_save_settings,
+    "cancel": _handle_cancel,
 }
 
 

@@ -87,6 +87,13 @@ pub async fn transfer_unsynced(
 }
 
 #[tauri::command]
+pub async fn cancel(
+    sidecar: State<'_, ManagedSidecar>,
+) -> Result<Value, SidecarError> {
+    sidecar.lock().await.call("cancel", Value::Null).await
+}
+
+#[tauri::command]
 pub async fn get_settings(
     sidecar: State<'_, ManagedSidecar>,
 ) -> Result<Value, SidecarError> {

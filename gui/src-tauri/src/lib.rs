@@ -32,6 +32,7 @@ pub fn run() {
             commands::remove_episode,
             commands::remove_from_garmin,
             commands::process_queue,
+            commands::cancel,
             commands::transfer_unsynced,
             commands::get_settings,
             commands::save_settings,

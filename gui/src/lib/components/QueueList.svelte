@@ -1,12 +1,19 @@
 <script lang="ts">
 	import EpisodeCard from './EpisodeCard.svelte';
 	import type { QueueEntry } from '$lib/types';
-	import { removeEpisode } from '$lib/stores/library.svelte';
+	import { cancelAndRemove } from '$lib/stores/library.svelte';
 
 	let { entries }: { entries: QueueEntry[] } = $props();
 
+	let removingId = $state<string | null>(null);
+
 	async function handleRemove(videoId: string) {
-		await removeEpisode(videoId);
+		removingId = videoId;
+		try {
+			await cancelAndRemove(videoId);
+		} finally {
+			removingId = null;
+		}
 	}
 </script>
 
@@ -16,7 +23,14 @@
 	{#each entries as entry (entry.video_id)}
 		<EpisodeCard title={entry.title} contentType={entry.content_type}>
 			{#snippet actions()}
-				<button class="btn-icon" onclick={() => handleRemove(entry.video_id)} title="Remove from queue">✕</button>
+				<button
+					class="btn-icon"
+					onclick={() => handleRemove(entry.video_id)}
+					disabled={removingId !== null}
+					title="Cancel and remove"
+				>
+					{removingId === entry.video_id ? '...' : '✕'}
+				</button>
 			{/snippet}
 		</EpisodeCard>
 	{/each}
@@ -38,9 +52,13 @@
 		font-size: 0.75rem;
 		color: #999;
 	}
-	.btn-icon:hover {
+	.btn-icon:hover:not(:disabled) {
 		background: #fee;
 		color: #c00;
 		border-color: #c00;
+	}
+	.btn-icon:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 </style>
