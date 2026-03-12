@@ -88,8 +88,10 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.5rem 1rem;
-		border-bottom: 1px solid var(--color-border);
+		box-shadow: var(--shadow-toolbar);
 		background: var(--color-bg-panel);
+		flex-shrink: 0;
+		z-index: 1;
 	}
 	h1 {
 		font-size: var(--font-size-lg);
@@ -100,10 +102,13 @@
 		font-size: var(--font-size-md);
 		color: var(--color-primary);
 		text-decoration: none;
-		transition: color 0.15s;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: 0.15rem 0.5rem;
+		transition: all 0.15s;
 	}
 	.back-link:hover {
-		text-decoration: underline;
+		background: var(--color-bg-hover);
 	}
 	.settings {
 		max-width: 500px;
@@ -159,7 +164,7 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
-	button {
+	.actions button {
 		font-size: var(--font-size-base);
 		padding: 0.4rem 1.2rem;
 		border: 1px solid var(--color-primary);
@@ -169,10 +174,10 @@
 		cursor: pointer;
 		transition: all 0.15s;
 	}
-	button:hover:not(:disabled) {
+	.actions button:hover:not(:disabled) {
 		background: var(--color-primary-hover);
 	}
-	button:disabled {
+	.actions button:disabled {
 		opacity: 0.5;
 	}
 	.saved-msg {

@@ -154,10 +154,13 @@
 		font-size: var(--font-size-md);
 		color: var(--color-primary);
 		text-decoration: none;
-		transition: color 0.15s;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: 0.15rem 0.5rem;
+		transition: all 0.15s;
 	}
 	.settings-link:hover {
-		text-decoration: underline;
+		background: var(--color-bg-hover);
 	}
 	.dashboard {
 		display: grid;
