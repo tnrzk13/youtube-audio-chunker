@@ -6,6 +6,7 @@
 	import WatchEpisodeList from '$lib/components/WatchEpisodeList.svelte';
 	import StorageBar from '$lib/components/StorageBar.svelte';
 	import ProgressPanel from '$lib/components/ProgressPanel.svelte';
+	import SpaceManagementDialog from '$lib/components/SpaceManagementDialog.svelte';
 	import { getLibrary, refreshLibrary, processQueue } from '$lib/stores/library';
 	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin';
 	import { getProgress, setActive, initProgressListener } from '$lib/stores/progress';
@@ -112,6 +113,7 @@
 </footer>
 
 <ProgressPanel />
+<SpaceManagementDialog />
 
 <style>
 	.toolbar {
