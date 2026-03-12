@@ -2,7 +2,7 @@
 
 Download YouTube audio, split into navigable chunks, and sideload to Garmin watches.
 
-Built for the Garmin Forerunner 245 Music (and similar watches that play MP3s from a `MUSIC/` folder via USB).
+Built for the Garmin Forerunner 245 Music (and similar watches that play MP3s via USB/MTP).
 
 ## Prerequisites
 
@@ -22,7 +22,16 @@ For development:
 pip install -e ".[dev]"
 ```
 
+## Quick start
+
+```bash
+# Download a video, chunk it, and transfer to watch - all in one step
+youtube-audio-chunker download "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
 ## Usage
+
+Run `youtube-audio-chunker --help` for full details, or `youtube-audio-chunker <command> --help` for command-specific options.
 
 ### Add videos to the queue
 
@@ -32,6 +41,21 @@ youtube-audio-chunker add "https://www.youtube.com/playlist?list=PLAYLIST_ID"
 ```
 
 Playlists are expanded to individual entries. Duplicates are skipped.
+
+### Content types
+
+Use `--type` with `add` or `download` to control chunking and destination folder:
+
+| Type | Chunking | Garmin folder |
+|------|----------|---------------|
+| `music` (default) | 5-min chunks | `Music/` |
+| `podcast` | Single file | `Podcasts/` |
+| `audiobook` | Single file | `Audiobooks/` |
+
+```bash
+youtube-audio-chunker add --type podcast "https://www.youtube.com/watch?v=VIDEO_ID"
+youtube-audio-chunker download --type audiobook "https://www.youtube.com/watch?v=VIDEO_ID"
+```
 
 ### Process queue and sync to watch
 
@@ -49,7 +73,12 @@ youtube-audio-chunker sync --chunk-duration 600
 youtube-audio-chunker sync --artist "Podcast Host"
 ```
 
-When the watch is low on storage, `sync` will list the oldest episodes and ask before removing them.
+### Transfer to watch
+
+```bash
+# Re-transfer any episodes not yet on the watch
+youtube-audio-chunker transfer
+```
 
 ### List episodes
 
@@ -72,7 +101,7 @@ youtube-audio-chunker remove "Episode Title" --watch   # Remove from watch only
 1. **Download** - yt-dlp extracts audio as 128kbps MP3
 2. **Split** - ffmpeg segments into 5-minute chunks (lossless, no re-encoding)
 3. **Tag** - ID3v2 tags set per chunk (title, album, artist, track number) so they play in order
-4. **Transfer** - copies to `MUSIC/` folder on the mounted Garmin
+4. **Transfer** - copies to the appropriate folder on the mounted Garmin via MTP
 
 Files are stored in `~/.youtube-audio-chunker/`.
 
