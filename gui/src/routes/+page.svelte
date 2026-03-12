@@ -10,8 +10,10 @@
 	import { getLibrary, refreshLibrary, processQueue } from '$lib/stores/library.svelte';
 	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin.svelte';
 	import { getProgress, setActive, initProgressListener } from '$lib/stores/progress.svelte';
+	import { getTheme, toggleTheme } from '$lib/stores/theme.svelte';
 
 	const library = getLibrary();
+	const theme = getTheme();
 	const garmin = getGarminStatus();
 	const progress = getProgress();
 
@@ -65,7 +67,12 @@
 
 <header class="toolbar">
 	<h1>youtube-audio-chunker</h1>
-	<a href="/settings" class="settings-link">Settings</a>
+	<div class="toolbar-actions">
+		<a href="/settings" class="settings-link">Settings</a>
+		<button class="theme-toggle" onclick={toggleTheme}>
+			{theme.isDark ? '\u2600' : '\u263E'}
+		</button>
+	</div>
 </header>
 
 <main class="dashboard">
@@ -137,6 +144,11 @@
 		font-weight: 600;
 		margin: 0;
 	}
+	.toolbar-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
 	.settings-link {
 		font-size: var(--font-size-md);
 		color: var(--color-primary);
@@ -145,6 +157,19 @@
 	}
 	.settings-link:hover {
 		text-decoration: underline;
+	}
+	.theme-toggle {
+		background: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		font-size: var(--font-size-lg);
+		padding: 0.15rem 0.4rem;
+		line-height: 1;
+		transition: all 0.15s;
+	}
+	.theme-toggle:hover {
+		background: var(--color-bg-hover);
 	}
 	.dashboard {
 		display: grid;

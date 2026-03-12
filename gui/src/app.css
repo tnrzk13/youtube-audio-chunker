@@ -67,3 +67,67 @@
   --font-size-base: 0.85rem;
   --font-size-lg: 1rem;
 }
+
+[data-theme="dark"] {
+  /* Primary */
+  --color-primary: #64b5f6;
+  --color-primary-hover: #90caf9;
+  --color-primary-light: rgba(100, 181, 246, 0.15);
+
+  /* Danger */
+  --color-danger: #ef5350;
+  --color-danger-confirm: #ef5350;
+  --color-danger-confirm-hover: #e53935;
+  --color-danger-bg: rgba(239, 83, 80, 0.12);
+  --color-danger-border: rgba(239, 83, 80, 0.3);
+
+  /* Status */
+  --color-success: #66bb6a;
+  --color-warning: #ffb74d;
+  --color-critical: #ef5350;
+
+  /* Text */
+  --color-text: #e0e0e0;
+  --color-text-secondary: #bbb;
+  --color-text-subtitle: #aaa;
+  --color-text-hint: #888;
+  --color-text-muted: #777;
+  --color-text-disabled: #4a4a4a;
+
+  /* Backgrounds */
+  --color-bg-page: #121212;
+  --color-bg-panel: #1e1e2e;
+  --color-bg-progress: #252535;
+  --color-bg-hover: #2a2a3a;
+  --color-bg-button-hover: #2a2a3a;
+
+  /* Borders */
+  --color-border: #333;
+  --color-border-subtle: #2a2a2a;
+  --color-border-light: #444;
+
+  /* Badges */
+  --color-badge-music-bg: rgba(100, 181, 246, 0.15);
+  --color-badge-music-text: #90caf9;
+  --color-badge-podcast-bg: rgba(186, 104, 200, 0.15);
+  --color-badge-podcast-text: #ce93d8;
+  --color-badge-audiobook-bg: rgba(255, 183, 77, 0.15);
+  --color-badge-audiobook-text: #ffb74d;
+
+  /* Overlay / shadow */
+  --color-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Bar */
+  --color-bar-track: #333;
+  --color-bar-fill: #666;
+
+  /* Shadows */
+  --shadow-dialog: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  color: var(--color-text);
+  background: var(--color-bg-panel);
+}
