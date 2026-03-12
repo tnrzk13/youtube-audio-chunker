@@ -40,6 +40,10 @@
 		padding: 0.5rem 0.75rem;
 		border-bottom: 1px solid #eee;
 		gap: 0.5rem;
+		transition: background 0.15s;
+	}
+	.card:hover {
+		background: #f8f9fa;
 	}
 	.card:last-child {
 		border-bottom: none;

@@ -29,13 +29,13 @@
 	.progress-bar {
 		height: 6px;
 		background: #ddd;
-		border-radius: 3px;
+		border-radius: 4px;
 		overflow: hidden;
 	}
 	.progress-fill {
 		height: 100%;
 		background: #1976d2;
-		border-radius: 3px;
+		border-radius: 4px;
 		transition: width 0.3s;
 	}
 </style>

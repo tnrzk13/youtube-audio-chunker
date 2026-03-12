@@ -93,19 +93,24 @@
 	.btn-cancel {
 		padding: 0.4rem 1rem;
 		border: 1px solid #ddd;
-		border-radius: 4px;
+		border-radius: 6px;
 		background: #fff;
 		cursor: pointer;
 		font-size: 0.8rem;
+		transition: all 0.15s;
+	}
+	.btn-cancel:hover {
+		background: #f5f5f5;
 	}
 	.btn-confirm {
 		padding: 0.4rem 1rem;
 		border: 1px solid #d32f2f;
-		border-radius: 4px;
+		border-radius: 6px;
 		background: #d32f2f;
 		color: #fff;
 		cursor: pointer;
 		font-size: 0.8rem;
+		transition: all 0.15s;
 	}
 	.btn-confirm:hover {
 		background: #c62828;

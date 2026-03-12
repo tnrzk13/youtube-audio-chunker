@@ -46,11 +46,12 @@
 	.btn-icon {
 		background: none;
 		border: 1px solid #ddd;
-		border-radius: 3px;
+		border-radius: 4px;
 		cursor: pointer;
 		padding: 0.15rem 0.4rem;
 		font-size: 0.75rem;
 		color: #999;
+		transition: all 0.15s;
 	}
 	.btn-icon:hover:not(:disabled) {
 		background: #fee;

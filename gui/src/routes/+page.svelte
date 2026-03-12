@@ -138,6 +138,7 @@
 		font-size: 0.8rem;
 		color: #1976d2;
 		text-decoration: none;
+		transition: color 0.15s;
 	}
 	.settings-link:hover {
 		text-decoration: underline;
@@ -173,6 +174,7 @@
 		gap: 0.4rem;
 		padding: 0.5rem 0.75rem;
 		border-bottom: 1px solid #eee;
+		background: #fafafa;
 		flex-shrink: 0;
 	}
 	.column-header h2 {
@@ -192,6 +194,7 @@
 		height: 8px;
 		border-radius: 50%;
 		background: #ccc;
+		transition: background 0.15s;
 	}
 	.status-dot.connected {
 		background: #43a047;
@@ -208,9 +211,10 @@
 		font-size: 0.8rem;
 		padding: 0.4rem 1rem;
 		border: 1px solid #ddd;
-		border-radius: 4px;
+		border-radius: 6px;
 		background: #fff;
 		cursor: pointer;
+		transition: all 0.15s;
 	}
 	.actions-bar button:hover:not(:disabled) {
 		background: #f5f5f5;

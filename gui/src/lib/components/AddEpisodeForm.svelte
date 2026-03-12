@@ -87,9 +87,14 @@
 		font-size: 0.8rem;
 		padding: 0.4rem;
 		border: 1px solid #ddd;
-		border-radius: 4px;
+		border-radius: 6px;
 		resize: vertical;
 		box-sizing: border-box;
+		transition: border-color 0.15s;
+	}
+	textarea:focus {
+		outline: none;
+		border-color: #1976d2;
 	}
 	.form-row {
 		display: flex;
@@ -100,18 +105,24 @@
 		font-size: 0.8rem;
 		padding: 0.3rem 0.4rem;
 		border: 1px solid #ddd;
-		border-radius: 4px;
+		border-radius: 6px;
 		background: #fff;
+		transition: border-color 0.15s;
+	}
+	select:focus {
+		outline: none;
+		border-color: #1976d2;
 	}
 	button {
 		font-size: 0.8rem;
 		padding: 0.3rem 0.75rem;
 		border: 1px solid #1976d2;
-		border-radius: 4px;
+		border-radius: 6px;
 		background: #1976d2;
 		color: #fff;
 		cursor: pointer;
 		white-space: nowrap;
+		transition: all 0.15s;
 	}
 	button:hover:not(:disabled) {
 		background: #1565c0;

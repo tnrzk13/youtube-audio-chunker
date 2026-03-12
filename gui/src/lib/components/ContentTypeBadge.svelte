@@ -15,7 +15,7 @@
 		display: inline-block;
 		font-size: 0.7rem;
 		padding: 0.1em 0.5em;
-		border-radius: 3px;
+		border-radius: 4px;
 		font-weight: 500;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;

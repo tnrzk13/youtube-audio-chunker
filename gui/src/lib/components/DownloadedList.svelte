@@ -85,11 +85,12 @@
 	.btn-icon {
 		background: none;
 		border: 1px solid #ddd;
-		border-radius: 3px;
+		border-radius: 4px;
 		cursor: pointer;
 		padding: 0.15rem 0.4rem;
 		font-size: 0.75rem;
 		color: #999;
+		transition: all 0.15s;
 	}
 	.btn-icon:hover:not(:disabled) {
 		background: #fee;
@@ -103,12 +104,13 @@
 	.btn-transfer {
 		background: none;
 		border: 1px solid #1976d2;
-		border-radius: 3px;
+		border-radius: 4px;
 		cursor: pointer;
 		padding: 0.15rem 0.4rem;
 		font-size: 0.75rem;
 		color: #1976d2;
 		font-weight: 600;
+		transition: all 0.15s;
 	}
 	.btn-transfer:hover:not(:disabled) {
 		background: #e3f2fd;

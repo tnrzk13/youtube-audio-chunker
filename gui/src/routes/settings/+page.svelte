@@ -96,6 +96,7 @@
 		font-size: 0.8rem;
 		color: #1976d2;
 		text-decoration: none;
+		transition: color 0.15s;
 	}
 	.back-link:hover {
 		text-decoration: underline;
@@ -120,15 +121,26 @@
 		padding: 0.4rem;
 		font-size: 0.85rem;
 		border: 1px solid #ddd;
-		border-radius: 4px;
+		border-radius: 6px;
+		transition: border-color 0.15s;
+	}
+	input[type='number']:focus,
+	input[type='text']:focus {
+		outline: none;
+		border-color: #1976d2;
 	}
 	select {
 		width: 100%;
 		padding: 0.4rem;
 		font-size: 0.85rem;
 		border: 1px solid #ddd;
-		border-radius: 4px;
+		border-radius: 6px;
 		background: #fff;
+		transition: border-color 0.15s;
+	}
+	select:focus {
+		outline: none;
+		border-color: #1976d2;
 	}
 	input[type='checkbox'] {
 		margin-right: 0.4rem;
@@ -147,10 +159,11 @@
 		font-size: 0.85rem;
 		padding: 0.4rem 1.2rem;
 		border: 1px solid #1976d2;
-		border-radius: 4px;
+		border-radius: 6px;
 		background: #1976d2;
 		color: #fff;
 		cursor: pointer;
+		transition: all 0.15s;
 	}
 	button:hover:not(:disabled) {
 		background: #1565c0;
