@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EpisodeCard from './EpisodeCard.svelte';
 	import type { DownloadedEpisode } from '$lib/types';
-	import { removeEpisode } from '$lib/stores/library';
+	import { removeEpisode } from '$lib/stores/library.svelte';
 
 	let { episodes }: { episodes: DownloadedEpisode[] } = $props();
 

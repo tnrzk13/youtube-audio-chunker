@@ -1,12 +1,11 @@
 use serde_json::Value;
 use std::collections::HashMap;
-use std::process::Stdio;
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::oneshot;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -34,7 +33,7 @@ impl SidecarManager {
     pub fn spawn(app_handle: AppHandle) -> Result<Self, String> {
         let python = find_python().ok_or("Python not found on PATH")?;
 
-        let mut child = tokio::process::Command::new(&python)
+        let mut child = Command::new(&python)
             .args(["-m", "youtube_audio_chunker.sidecar"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -48,14 +47,21 @@ impl SidecarManager {
         let pending: PendingMap = Arc::new(Mutex::new(HashMap::new()));
         let stdin = Arc::new(Mutex::new(stdin));
 
-        // Background task: read stdout lines and route them
+        // Background thread: read stdout lines and route them
         let pending_clone = pending.clone();
         let stdin_clone = stdin.clone();
-        tokio::spawn(async move {
+        std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            let mut lines = reader.lines();
 
-            while let Ok(Some(line)) = lines.next_line().await {
+            for line in reader.lines() {
+                let line = match line {
+                    Ok(l) => l,
+                    Err(_) => break,
+                };
+                if line.is_empty() {
+                    continue;
+                }
+
                 let parsed: Value = match serde_json::from_str(&line) {
                     Ok(v) => v,
                     Err(e) => {
@@ -65,20 +71,13 @@ impl SidecarManager {
                 };
 
                 if let Some(id) = parsed.get("id") {
-                    // Check if this is a response (has "result" or "error") or a
-                    // reverse request (has "method")
                     if parsed.get("method").is_some() {
                         // Reverse request from sidecar (e.g. confirm_removal)
-                        handle_reverse_request(
-                            &app_handle,
-                            &stdin_clone,
-                            &parsed,
-                        )
-                        .await;
+                        handle_reverse_request(&app_handle, &stdin_clone, &parsed);
                     } else {
                         // Response to our request
                         let id = id.as_u64().unwrap_or(0);
-                        let mut map = pending_clone.lock().await;
+                        let mut map = pending_clone.lock().unwrap();
                         if let Some(sender) = map.remove(&id) {
                             if let Some(error) = parsed.get("error") {
                                 let code =
@@ -129,21 +128,20 @@ impl SidecarManager {
 
         let (tx, rx) = oneshot::channel();
         {
-            let mut map = self.pending.lock().await;
+            let mut map = self.pending.lock().unwrap();
             map.insert(id, tx);
         }
 
         let line = serde_json::to_string(&request).unwrap() + "\n";
         {
-            let mut stdin = self.stdin.lock().await;
+            let mut stdin = self.stdin.lock().unwrap();
             stdin
                 .write_all(line.as_bytes())
-                .await
                 .map_err(|e| SidecarError {
                     code: -32000,
                     message: format!("Failed to write to sidecar: {e}"),
                 })?;
-            stdin.flush().await.map_err(|e| SidecarError {
+            stdin.flush().map_err(|e| SidecarError {
                 code: -32000,
                 message: format!("Failed to flush sidecar stdin: {e}"),
             })?;
@@ -156,7 +154,7 @@ impl SidecarManager {
     }
 }
 
-async fn handle_reverse_request(
+fn handle_reverse_request(
     app_handle: &AppHandle,
     stdin: &Arc<Mutex<ChildStdin>>,
     request: &Value,
@@ -165,27 +163,24 @@ async fn handle_reverse_request(
     let params = request.get("params").cloned().unwrap_or(Value::Null);
     let id = request.get("id").cloned().unwrap_or(Value::Null);
 
-    // Emit event to frontend and wait for response via a one-shot channel
-    // stored in the app state
     let event_name = format!("sidecar:reverse:{method}");
     let _ = app_handle.emit(&event_name, &params);
 
-    // For now, auto-decline reverse requests (the frontend will override this
-    // by responding via a Tauri command that writes to sidecar stdin)
+    // Auto-decline for now; frontend will respond via a Tauri command
     let response = serde_json::json!({
         "jsonrpc": "2.0",
         "result": false,
         "id": id,
     });
     let line = serde_json::to_string(&response).unwrap() + "\n";
-    let mut stdin_guard = stdin.lock().await;
-    let _ = stdin_guard.write_all(line.as_bytes()).await;
-    let _ = stdin_guard.flush().await;
+    let mut stdin_guard = stdin.lock().unwrap();
+    let _ = stdin_guard.write_all(line.as_bytes());
+    let _ = stdin_guard.flush();
 }
 
 fn find_python() -> Option<String> {
     for name in &["python3", "python"] {
-        if std::process::Command::new(name)
+        if Command::new(name)
             .arg("--version")
             .stdout(Stdio::null())
             .stderr(Stdio::null())

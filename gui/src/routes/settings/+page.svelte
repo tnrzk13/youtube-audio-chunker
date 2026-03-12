@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getSettings, refreshSettings, saveSettings } from '$lib/stores/settings';
+	import { getSettings, refreshSettings, saveSettings } from '$lib/stores/settings.svelte';
 
 	const settings = getSettings();
 

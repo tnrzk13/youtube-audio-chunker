@@ -207,12 +207,12 @@ def _is_removable_macos(volume: Path) -> bool:
 def _remove_path(path: Path) -> None:
     if _is_mtp_path(path):
         result = subprocess.run(
-            ["gio", "trash", str(path)],
+            ["gio", "remove", str(path)],
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
-            raise GarminError(f"gio trash failed: {result.stderr.strip()}")
+            raise GarminError(f"gio remove failed: {result.stderr.strip()}")
     elif path.is_dir():
         shutil.rmtree(path)
     else:

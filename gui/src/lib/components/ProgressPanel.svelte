@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getProgress } from '$lib/stores/progress';
+	import { getProgress } from '$lib/stores/progress.svelte';
 
 	const progress = getProgress();
 </script>

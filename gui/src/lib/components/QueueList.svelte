@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EpisodeCard from './EpisodeCard.svelte';
 	import type { QueueEntry } from '$lib/types';
-	import { removeEpisode } from '$lib/stores/library';
+	import { removeEpisode } from '$lib/stores/library.svelte';
 
 	let { entries }: { entries: QueueEntry[] } = $props();
 

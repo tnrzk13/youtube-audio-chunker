@@ -7,9 +7,9 @@
 	import StorageBar from '$lib/components/StorageBar.svelte';
 	import ProgressPanel from '$lib/components/ProgressPanel.svelte';
 	import SpaceManagementDialog from '$lib/components/SpaceManagementDialog.svelte';
-	import { getLibrary, refreshLibrary, processQueue } from '$lib/stores/library';
-	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin';
-	import { getProgress, setActive, initProgressListener } from '$lib/stores/progress';
+	import { getLibrary, refreshLibrary, processQueue } from '$lib/stores/library.svelte';
+	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin.svelte';
+	import { getProgress, setActive, initProgressListener } from '$lib/stores/progress.svelte';
 
 	const library = getLibrary();
 	const garmin = getGarminStatus();

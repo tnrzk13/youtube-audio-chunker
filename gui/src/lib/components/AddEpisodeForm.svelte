@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { addToQueue } from '$lib/stores/library';
+	import { addToQueue } from '$lib/stores/library.svelte';
 	import type { ContentType } from '$lib/types';
 
 	let urlInput = $state('');

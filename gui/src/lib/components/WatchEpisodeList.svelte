@@ -1,9 +1,11 @@
 <script lang="ts">
 	import EpisodeCard from './EpisodeCard.svelte';
 	import type { GarminEpisode } from '$lib/types';
-	import { removeFromGarmin } from '$lib/stores/garmin';
+	import { removeFromGarmin } from '$lib/stores/garmin.svelte';
 
 	let { episodes }: { episodes: GarminEpisode[] } = $props();
+
+	let errorMsg = $state('');
 
 	function formatSize(bytes: number): string {
 		const mb = bytes / 1_000_000;
@@ -11,10 +13,18 @@
 	}
 
 	async function handleRemove(folderName: string) {
-		await removeFromGarmin(folderName);
+		errorMsg = '';
+		try {
+			await removeFromGarmin(folderName);
+		} catch (e: any) {
+			errorMsg = e?.message ?? String(e);
+		}
 	}
 </script>
 
+{#if errorMsg}
+	<div class="error">{errorMsg}</div>
+{/if}
 {#if episodes.length === 0}
 	<p class="empty">No episodes on watch</p>
 {:else}
@@ -51,5 +61,12 @@
 		background: #fee;
 		color: #c00;
 		border-color: #c00;
+	}
+	.error {
+		font-size: 0.75rem;
+		color: #c00;
+		padding: 0.4rem 0.75rem;
+		background: #fee;
+		border-bottom: 1px solid #fcc;
 	}
 </style>
