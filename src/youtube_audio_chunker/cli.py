@@ -42,6 +42,7 @@ def main() -> None:
         handlers = {
             "add": _handle_add,
             "sync": _handle_sync,
+            "download": _handle_download,
             "list": _handle_list,
             "remove": _handle_remove,
         }
@@ -60,6 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     _add_add_parser(subparsers)
     _add_sync_parser(subparsers)
+    _add_download_parser(subparsers)
     _add_list_parser(subparsers)
     _add_remove_parser(subparsers)
 
@@ -80,6 +82,34 @@ def _add_add_parser(subparsers) -> None:
 
 def _add_sync_parser(subparsers) -> None:
     p = subparsers.add_parser("sync", help="Process queue, chunk, transfer to watch")
+    p.add_argument(
+        "--chunk-duration", type=int, default=None,
+        help=f"Force chunking at this duration in seconds "
+        f"(default: {DEFAULT_CHUNK_DURATION_SECONDS} for music, disabled for podcast/audiobook)",
+    )
+    p.add_argument("--artist", help="Override artist name for ID3 tags")
+    p.add_argument(
+        "--keep-full", action="store_true",
+        help="Keep full audio file after chunking",
+    )
+    p.add_argument(
+        "--no-transfer", action="store_true",
+        help="Process but don't copy to watch",
+    )
+
+
+def _add_download_parser(subparsers) -> None:
+    p = subparsers.add_parser(
+        "download", help="Add URLs and immediately download (add + sync in one step)",
+    )
+    p.add_argument("urls", nargs="+", help="YouTube video or playlist URLs")
+    p.add_argument(
+        "--type",
+        choices=[t.value for t in ContentType],
+        default=ContentType.MUSIC.value,
+        help="Content type: music (chunked, MUSIC/), podcast (single, Podcasts/), "
+        "audiobook (single, Audio books/). Default: music",
+    )
     p.add_argument(
         "--chunk-duration", type=int, default=None,
         help=f"Force chunking at this duration in seconds "
@@ -127,6 +157,11 @@ def _handle_add(args) -> None:
             else:
                 print(f"Skipped (already exists): {entry['title']}")
     save_library(library)
+
+
+def _handle_download(args) -> None:
+    _handle_add(args)
+    _handle_sync(args)
 
 
 def _handle_sync(args) -> None:

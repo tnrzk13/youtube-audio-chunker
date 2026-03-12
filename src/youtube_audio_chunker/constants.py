@@ -21,7 +21,7 @@ class ContentType(str, Enum):
 
 
 GARMIN_DIRS = {
-    ContentType.MUSIC: "MUSIC",
+    ContentType.MUSIC: "Music",
     ContentType.PODCAST: "Podcasts",
-    ContentType.AUDIOBOOK: "Audio books",
+    ContentType.AUDIOBOOK: "Audiobooks",
 }

@@ -15,13 +15,15 @@ from youtube_audio_chunker.garmin import (
 )
 from youtube_audio_chunker.errors import GarminError
 
+MODULE = "youtube_audio_chunker.garmin"
+
 
 @pytest.fixture
 def fake_garmin(tmp_path):
-    """Create a fake Garmin mount point with GARMIN/ marker and MUSIC/ dir."""
+    """Create a fake Garmin mount point with GARMIN/ marker and Music/ dir."""
     garmin_dir = tmp_path / "GARMIN"
     garmin_dir.mkdir()
-    music_dir = tmp_path / "MUSIC"
+    music_dir = tmp_path / "Music"
     music_dir.mkdir()
     return tmp_path
 
@@ -29,7 +31,7 @@ def fake_garmin(tmp_path):
 @pytest.fixture
 def garmin_with_episodes(fake_garmin):
     """Garmin mount with two existing episode folders."""
-    music = fake_garmin / "MUSIC"
+    music = fake_garmin / "Music"
     ep1 = music / "Old-Podcast"
     ep1.mkdir()
     (ep1 / "01_Old-Podcast.mp3").write_bytes(b"\x00" * 5000)
@@ -41,9 +43,15 @@ def garmin_with_episodes(fake_garmin):
     return fake_garmin
 
 
+def _no_mtp(monkeypatch):
+    """Ensure MTP detection returns nothing during tests."""
+    monkeypatch.setattr(f"{MODULE}._get_mtp_mountpoints", lambda: [])
+
+
 class TestFindGarminMount:
-    @patch("youtube_audio_chunker.garmin.subprocess.run")
-    def test_finds_garmin_by_lsblk_and_marker(self, mock_run, fake_garmin):
+    @patch(f"{MODULE}.subprocess.run")
+    def test_finds_garmin_by_lsblk_and_marker(self, mock_run, fake_garmin, monkeypatch):
+        _no_mtp(monkeypatch)
         lsblk_output = {
             "blockdevices": [
                 {
@@ -60,8 +68,25 @@ class TestFindGarminMount:
         result = find_garmin_mount()
         assert result == fake_garmin
 
-    @patch("youtube_audio_chunker.garmin.subprocess.run")
-    def test_returns_none_when_no_removable_devices(self, mock_run):
+    @patch(f"{MODULE}.subprocess.run")
+    def test_finds_garmin_via_mtp(self, mock_run, tmp_path, monkeypatch):
+        # MTP mount with Internal Storage/GARMIN marker
+        internal = tmp_path / "Internal Storage"
+        internal.mkdir()
+        (internal / "GARMIN").mkdir()
+        (internal / "Music").mkdir()
+
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout=json.dumps({"blockdevices": []})
+        )
+        monkeypatch.setattr(f"{MODULE}._get_mtp_mountpoints", lambda: [tmp_path])
+
+        result = find_garmin_mount()
+        assert result == internal
+
+    @patch(f"{MODULE}.subprocess.run")
+    def test_returns_none_when_no_removable_devices(self, mock_run, monkeypatch):
+        _no_mtp(monkeypatch)
         lsblk_output = {"blockdevices": []}
         mock_run.return_value = MagicMock(
             returncode=0, stdout=json.dumps(lsblk_output)
@@ -70,8 +95,9 @@ class TestFindGarminMount:
         result = find_garmin_mount()
         assert result is None
 
-    @patch("youtube_audio_chunker.garmin.subprocess.run")
-    def test_returns_none_when_no_garmin_marker(self, mock_run, tmp_path):
+    @patch(f"{MODULE}.subprocess.run")
+    def test_returns_none_when_no_garmin_marker(self, mock_run, tmp_path, monkeypatch):
+        _no_mtp(monkeypatch)
         # Removable but no GARMIN/ directory
         lsblk_output = {
             "blockdevices": [
@@ -85,8 +111,9 @@ class TestFindGarminMount:
         result = find_garmin_mount()
         assert result is None
 
-    @patch("youtube_audio_chunker.garmin.subprocess.run")
-    def test_skips_null_mountpoints(self, mock_run):
+    @patch(f"{MODULE}.subprocess.run")
+    def test_skips_null_mountpoints(self, mock_run, monkeypatch):
+        _no_mtp(monkeypatch)
         lsblk_output = {
             "blockdevices": [
                 {"name": "sda", "rm": True, "mountpoints": [None]}
@@ -109,7 +136,7 @@ class TestCopyToGarmin:
 
         result = copy_to_garmin(source, fake_garmin)
 
-        dest = fake_garmin / "MUSIC" / "My-Podcast"
+        dest = fake_garmin / "Music" / "My-Podcast"
         assert dest.exists()
         assert len(list(dest.iterdir())) == 2
         assert result == dest
@@ -120,7 +147,7 @@ class TestCopyToGarmin:
         (source / "chunk.mp3").write_bytes(b"\x00" * 100)
 
         with patch(
-            "youtube_audio_chunker.garmin.get_available_space_bytes", return_value=0
+            f"{MODULE}.get_available_space_bytes", return_value=0
         ):
             with pytest.raises(GarminError, match="space"):
                 copy_to_garmin(source, fake_garmin)
@@ -129,26 +156,26 @@ class TestCopyToGarmin:
         garmin_mount = tmp_path / "garmin"
         garmin_mount.mkdir()
         (garmin_mount / "GARMIN").mkdir()
-        # No MUSIC dir yet
+        # No Music dir yet
 
         source = tmp_path / "src" / "Ep"
         source.mkdir(parents=True)
         (source / "01.mp3").write_bytes(b"\x00" * 10)
 
         with patch(
-            "youtube_audio_chunker.garmin.get_available_space_bytes",
+            f"{MODULE}.get_available_space_bytes",
             return_value=1_000_000,
         ):
             result = copy_to_garmin(source, garmin_mount)
 
         # Single file gets copied directly, not as a subfolder
-        assert (garmin_mount / "MUSIC" / "01.mp3").exists()
+        assert (garmin_mount / "Music" / "01.mp3").exists()
 
 
 class TestRemoveFromGarmin:
     def test_removes_episode_folder(self, garmin_with_episodes):
         remove_from_garmin("Old-Podcast", garmin_with_episodes)
-        assert not (garmin_with_episodes / "MUSIC" / "Old-Podcast").exists()
+        assert not (garmin_with_episodes / "Music" / "Old-Podcast").exists()
 
     def test_raises_error_for_missing_folder(self, fake_garmin):
         with pytest.raises(GarminError, match="not found"):
@@ -174,7 +201,7 @@ class TestListGarminEpisodes:
 
 
 class TestGetAvailableSpaceBytes:
-    @patch("youtube_audio_chunker.garmin.shutil.disk_usage")
+    @patch(f"{MODULE}.shutil.disk_usage")
     def test_returns_free_space(self, mock_usage, fake_garmin):
         mock_usage.return_value = MagicMock(free=500_000_000)
         result = get_available_space_bytes(fake_garmin)

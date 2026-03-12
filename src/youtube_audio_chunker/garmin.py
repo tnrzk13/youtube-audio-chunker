@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -26,11 +27,30 @@ class GarminEpisode:
 
 
 def find_garmin_mount() -> Path | None:
-    mountpoints = _get_removable_mountpoints()
-    for mp in mountpoints:
-        if (mp / GARMIN_MARKER_DIR).is_dir():
-            return mp
+    candidates = _get_removable_mountpoints()
+    candidates.extend(_get_mtp_mountpoints())
+    for mp in candidates:
+        garmin_root = _find_garmin_root(mp)
+        if garmin_root is not None:
+            return garmin_root
     return None
+
+
+def _find_garmin_root(mountpoint: Path) -> Path | None:
+    """Check mountpoint and one level of subdirs for the GARMIN marker."""
+    if (mountpoint / GARMIN_MARKER_DIR).is_dir():
+        return mountpoint
+    for child in _safe_iterdir(mountpoint):
+        if child.is_dir() and (child / GARMIN_MARKER_DIR).is_dir():
+            return child
+    return None
+
+
+def _safe_iterdir(path: Path) -> list[Path]:
+    try:
+        return list(path.iterdir())
+    except OSError:
+        return []
 
 
 def copy_to_garmin(
@@ -112,6 +132,14 @@ def list_garmin_episodes(garmin_mount: Path) -> list[GarminEpisode]:
 
 def get_available_space_bytes(garmin_mount: Path) -> int:
     return shutil.disk_usage(garmin_mount).free
+
+
+def _get_mtp_mountpoints() -> list[Path]:
+    """Find GVFS MTP mounts (Linux only)."""
+    gvfs_dir = Path(f"/run/user/{os.getuid()}/gvfs")
+    if not gvfs_dir.is_dir():
+        return []
+    return [p for p in gvfs_dir.iterdir() if p.is_dir() and "mtp" in p.name]
 
 
 def _get_removable_mountpoints() -> list[Path]:
