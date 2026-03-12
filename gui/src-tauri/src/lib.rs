@@ -1,0 +1,43 @@
+mod commands;
+mod sidecar;
+
+use commands::ManagedSidecar;
+use sidecar::SidecarManager;
+use tauri::Manager;
+use tokio::sync::Mutex;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .setup(|app| {
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
+
+            let handle = app.handle().clone();
+            let manager = SidecarManager::spawn(handle)
+                .map_err(|e| Box::<dyn std::error::Error>::from(e))?;
+            app.manage::<ManagedSidecar>(Mutex::new(manager));
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::get_library,
+            commands::get_garmin_status,
+            commands::add_to_queue,
+            commands::remove_episode,
+            commands::remove_from_garmin,
+            commands::process_queue,
+            commands::cancel,
+            commands::transfer_unsynced,
+            commands::transfer_episode,
+            commands::get_settings,
+            commands::save_settings,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
