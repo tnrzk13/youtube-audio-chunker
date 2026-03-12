@@ -1,11 +1,19 @@
 <script lang="ts">
-	import { addToQueue } from '$lib/stores/library.svelte';
+	import { addToQueue, processQueue } from '$lib/stores/library.svelte';
+	import { setActive } from '$lib/stores/progress.svelte';
 	import type { ContentType } from '$lib/types';
 
 	let urlInput = $state('');
 	let contentType = $state<ContentType>('music');
 	let submitting = $state(false);
 	let errorMsg = $state('');
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			handleSubmit();
+		}
+	}
 
 	async function handleSubmit() {
 		const urls = urlInput
@@ -19,14 +27,19 @@
 		errorMsg = '';
 		try {
 			const result = await addToQueue(urls, contentType);
-			if (result.skipped.length > 0) {
+			if (result.skipped.length > 0 && result.added.length === 0) {
 				errorMsg = `Skipped (already exists): ${result.skipped.join(', ')}`;
+				return;
 			}
 			urlInput = '';
+
+			setActive(true);
+			await processQueue({ noTransfer: true });
 		} catch (e: any) {
 			errorMsg = e?.message ?? String(e);
 		} finally {
 			submitting = false;
+			setActive(false);
 		}
 	}
 </script>
@@ -34,9 +47,10 @@
 <form class="add-form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 	<textarea
 		bind:value={urlInput}
-		placeholder="Paste YouTube URL(s), one per line..."
-		rows="2"
+		placeholder="Paste YouTube URL(s)..."
+		rows="1"
 		disabled={submitting}
+		onkeydown={handleKeydown}
 	></textarea>
 	<div class="form-row">
 		<select bind:value={contentType} disabled={submitting}>
@@ -45,7 +59,7 @@
 			<option value="audiobook">Audiobook</option>
 		</select>
 		<button type="submit" disabled={submitting || urlInput.trim().length === 0}>
-			{submitting ? 'Adding...' : '+ Add'}
+			{submitting ? 'Syncing...' : '+ Add'}
 		</button>
 	</div>
 	{#if errorMsg}

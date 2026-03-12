@@ -2,8 +2,14 @@
 	import EpisodeCard from './EpisodeCard.svelte';
 	import type { DownloadedEpisode } from '$lib/types';
 	import { removeEpisode } from '$lib/stores/library.svelte';
+	import { transferUnsynced, getGarminStatus } from '$lib/stores/garmin.svelte';
+	import { setActive } from '$lib/stores/progress.svelte';
+	import { refreshLibrary } from '$lib/stores/library.svelte';
 
 	let { episodes }: { episodes: DownloadedEpisode[] } = $props();
+
+	let transferringId = $state<string | null>(null);
+	const garmin = getGarminStatus();
 
 	function formatSize(bytes: number): string {
 		const mb = bytes / 1_000_000;
@@ -20,6 +26,18 @@
 	async function handleRemove(videoId: string) {
 		await removeEpisode(videoId);
 	}
+
+	async function handleTransfer(videoId: string) {
+		transferringId = videoId;
+		setActive(true);
+		try {
+			await transferUnsynced();
+			await refreshLibrary();
+		} finally {
+			transferringId = null;
+			setActive(false);
+		}
+	}
 </script>
 
 {#if episodes.length === 0}
@@ -28,6 +46,16 @@
 	{#each episodes as ep (ep.video_id)}
 		<EpisodeCard title={ep.title} contentType={ep.content_type} subtitle={subtitle(ep)}>
 			{#snippet actions()}
+				{#if !ep.synced_at && garmin.data.connected}
+					<button
+						class="btn-transfer"
+						onclick={() => handleTransfer(ep.video_id)}
+						disabled={transferringId !== null}
+						title="Transfer to watch"
+					>
+						{transferringId === ep.video_id ? '...' : '->'}
+					</button>
+				{/if}
 				<button class="btn-icon" onclick={() => handleRemove(ep.video_id)} title="Delete episode">✕</button>
 			{/snippet}
 		</EpisodeCard>
@@ -54,5 +82,22 @@
 		background: #fee;
 		color: #c00;
 		border-color: #c00;
+	}
+	.btn-transfer {
+		background: none;
+		border: 1px solid #1976d2;
+		border-radius: 3px;
+		cursor: pointer;
+		padding: 0.15rem 0.4rem;
+		font-size: 0.75rem;
+		color: #1976d2;
+		font-weight: 600;
+	}
+	.btn-transfer:hover:not(:disabled) {
+		background: #e3f2fd;
+	}
+	.btn-transfer:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 </style>
