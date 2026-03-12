@@ -34,6 +34,7 @@ pub fn run() {
             commands::process_queue,
             commands::cancel,
             commands::transfer_unsynced,
+            commands::transfer_episode,
             commands::get_settings,
             commands::save_settings,
         ])

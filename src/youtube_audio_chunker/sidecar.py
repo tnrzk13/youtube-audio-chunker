@@ -47,7 +47,7 @@ _cancel_event = threading.Event()
 _stdout_lock = threading.Lock()
 
 # Methods that run in a background thread so the main loop stays responsive
-_ASYNC_METHODS = {"process_queue", "transfer_unsynced"}
+_ASYNC_METHODS = {"process_queue", "transfer_unsynced", "transfer_episode"}
 
 
 def main() -> None:
@@ -353,6 +353,46 @@ def _handle_process_queue(params: dict) -> dict:
     return {"processed": processed_count, "transferred": transferred_count}
 
 
+# --- Transfer single episode ---
+
+
+def _handle_transfer_episode(params: dict) -> dict:
+    from youtube_audio_chunker.garmin import copy_to_garmin
+    from youtube_audio_chunker.library import mark_synced
+
+    video_id = params["video_id"]
+    library = load_library()
+    ep = next((e for e in library.downloaded if e.video_id == video_id), None)
+    if ep is None:
+        raise ChunkerError(f"Episode not found: {video_id}")
+
+    garmin_mount = find_garmin_mount()
+    if garmin_mount is None:
+        raise GarminError("No Garmin watch detected.")
+
+    episode_dir = OUTPUT_DIR / ep.folder_name
+    if not episode_dir.exists():
+        raise ChunkerError(f"Files not found: {ep.title}")
+
+    content_type = ContentType(ep.content_type)
+    needed = sum(f.stat().st_size for f in episode_dir.rglob("*") if f.is_file())
+    available = get_available_space_bytes(garmin_mount)
+
+    if needed > available:
+        raise GarminError(
+            f"Not enough space on watch. Need {needed // 1_000_000} MB, "
+            f"have {available // 1_000_000} MB free."
+        )
+
+    _notify_progress("transfer", ep.video_id, f"Transferring: {ep.title}", 0)
+    copy_to_garmin(episode_dir, garmin_mount, content_type)
+    mark_synced(library, ep.video_id)
+    save_library(library)
+    _notify_progress("transfer", ep.video_id, f"Synced: {ep.title}", 100)
+
+    return {"transferred": video_id}
+
+
 # --- Transfer unsynced ---
 
 
@@ -557,6 +597,7 @@ _METHODS = {
     "remove_from_garmin": _handle_remove_from_garmin,
     "process_queue": _handle_process_queue,
     "transfer_unsynced": _handle_transfer_unsynced,
+    "transfer_episode": _handle_transfer_episode,
     "get_settings": _handle_get_settings,
     "save_settings": _handle_save_settings,
     "cancel": _handle_cancel,

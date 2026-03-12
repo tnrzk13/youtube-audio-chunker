@@ -59,6 +59,15 @@ pub async fn remove_from_garmin(
 }
 
 #[tauri::command]
+pub async fn transfer_episode(
+    sidecar: State<'_, ManagedSidecar>,
+    video_id: String,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "video_id": video_id });
+    sidecar.lock().await.call("transfer_episode", params).await
+}
+
+#[tauri::command]
 pub async fn process_queue(
     sidecar: State<'_, ManagedSidecar>,
     chunk_duration_seconds: Option<u32>,

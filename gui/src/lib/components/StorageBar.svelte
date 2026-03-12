@@ -8,7 +8,7 @@
 	let usedPercent = $derived(totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0);
 	let freePercent = $derived(100 - usedPercent);
 
-	let barColor = $derived(
+	let statusColor = $derived(
 		freePercent < 10 ? '#e53935' : freePercent < 20 ? '#ffa726' : '#43a047'
 	);
 
@@ -22,9 +22,9 @@
 {#if status.connected}
 	<div class="storage">
 		<div class="bar">
-			<div class="bar-fill" style="width: {usedPercent}%; background: {barColor}"></div>
+			<div class="bar-fill" style="width: {usedPercent}%"></div>
 		</div>
-		<div class="label">{formatSize(status.available_bytes)} free of {formatSize(totalBytes)}</div>
+		<div class="label" style="color: {statusColor}">{formatSize(status.available_bytes)} free of {formatSize(totalBytes)}</div>
 	</div>
 {/if}
 
@@ -42,10 +42,10 @@
 		height: 100%;
 		border-radius: 4px;
 		transition: width 0.3s;
+		background: #999;
 	}
 	.label {
 		font-size: 0.7rem;
-		color: #888;
 		margin-top: 0.25rem;
 		text-align: center;
 	}

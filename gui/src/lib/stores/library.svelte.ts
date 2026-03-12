@@ -50,6 +50,11 @@ export async function processQueue(options: {
 	return result;
 }
 
+export async function transferEpisode(videoId: string) {
+	await invoke('transfer_episode', { videoId });
+	await refreshLibrary();
+}
+
 export async function cancelProcessing() {
 	await invoke('cancel');
 }

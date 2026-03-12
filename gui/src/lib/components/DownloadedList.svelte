@@ -1,14 +1,14 @@
 <script lang="ts">
 	import EpisodeCard from './EpisodeCard.svelte';
 	import type { DownloadedEpisode } from '$lib/types';
-	import { removeEpisode } from '$lib/stores/library.svelte';
-	import { transferUnsynced, getGarminStatus } from '$lib/stores/garmin.svelte';
+	import { removeEpisode, transferEpisode } from '$lib/stores/library.svelte';
+	import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
 	import { setActive } from '$lib/stores/progress.svelte';
-	import { refreshLibrary } from '$lib/stores/library.svelte';
 
 	let { episodes }: { episodes: DownloadedEpisode[] } = $props();
 
 	let transferringId = $state<string | null>(null);
+	let removingId = $state<string | null>(null);
 	const garmin = getGarminStatus();
 
 	function formatSize(bytes: number): string {
@@ -23,16 +23,22 @@
 		return `${chunks} - ${size} - ${sync}`;
 	}
 
-	async function handleRemove(videoId: string) {
-		await removeEpisode(videoId);
+	async function handleRemove(videoId: string, title: string) {
+		if (!confirm(`Delete ${title}? This episode will need to be re-downloaded.`)) return;
+		removingId = videoId;
+		try {
+			await removeEpisode(videoId);
+		} finally {
+			removingId = null;
+		}
 	}
 
 	async function handleTransfer(videoId: string) {
 		transferringId = videoId;
 		setActive(true);
 		try {
-			await transferUnsynced();
-			await refreshLibrary();
+			await transferEpisode(videoId);
+			await refreshGarmin();
 		} finally {
 			transferringId = null;
 			setActive(false);
@@ -53,10 +59,17 @@
 						disabled={transferringId !== null}
 						title="Transfer to watch"
 					>
-						{transferringId === ep.video_id ? '...' : '->'}
+						{transferringId === ep.video_id ? '...' : '\u2192'}
 					</button>
 				{/if}
-				<button class="btn-icon" onclick={() => handleRemove(ep.video_id)} title="Delete episode">✕</button>
+				<button
+					class="btn-icon"
+					onclick={() => handleRemove(ep.video_id, ep.title)}
+					disabled={removingId !== null}
+					title="Delete episode"
+				>
+					{removingId === ep.video_id ? '...' : '✕'}
+				</button>
 			{/snippet}
 		</EpisodeCard>
 	{/each}
@@ -78,10 +91,14 @@
 		font-size: 0.75rem;
 		color: #999;
 	}
-	.btn-icon:hover {
+	.btn-icon:hover:not(:disabled) {
 		background: #fee;
 		color: #c00;
 		border-color: #c00;
+	}
+	.btn-icon:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 	.btn-transfer {
 		background: none;

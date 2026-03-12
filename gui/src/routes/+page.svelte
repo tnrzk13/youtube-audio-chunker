@@ -76,6 +76,8 @@
 		</div>
 	</section>
 
+	<span class="flow-arrow">{'\u2192'}</span>
+
 	<section class="column">
 		<div class="column-header">
 			<h2>Local ({library.data.downloaded.length})</h2>
@@ -85,6 +87,8 @@
 		</div>
 	</section>
 
+	<span class="flow-arrow">{'\u2192'}</span>
+
 	<section class="column">
 		<div class="column-header">
 			<h2>Watch</h2>
@@ -92,7 +96,7 @@
 		</div>
 		<StorageBar status={garmin.data} />
 		<div class="column-scroll">
-			<WatchEpisodeList episodes={garmin.data.episodes} />
+			<WatchEpisodeList episodes={garmin.data.episodes} connected={garmin.data.connected} />
 		</div>
 	</section>
 </main>
@@ -140,10 +144,18 @@
 	}
 	.dashboard {
 		display: grid;
-		grid-template-columns: 1fr 1fr 1fr;
+		grid-template-columns: 1fr auto 1fr auto 1fr;
 		gap: 0;
 		flex: 1;
 		overflow: hidden;
+	}
+	.flow-arrow {
+		display: flex;
+		align-items: center;
+		color: #ccc;
+		font-size: 1rem;
+		padding: 0 0.15rem;
+		user-select: none;
 	}
 	.column {
 		display: flex;
