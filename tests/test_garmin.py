@@ -141,7 +141,8 @@ class TestCopyToGarmin:
         ):
             result = copy_to_garmin(source, garmin_mount)
 
-        assert (garmin_mount / "MUSIC" / "Ep").exists()
+        # Single file gets copied directly, not as a subfolder
+        assert (garmin_mount / "MUSIC" / "01.mp3").exists()
 
 
 class TestRemoveFromGarmin:

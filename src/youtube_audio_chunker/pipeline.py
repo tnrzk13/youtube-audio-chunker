@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from youtube_audio_chunker.constants import (
+    ContentType,
     DEFAULT_CHUNK_DURATION_SECONDS,
     LIBRARY_PATH,
     OUTPUT_DIR,
@@ -28,14 +29,14 @@ from youtube_audio_chunker.library import (
     QueueEntry,
 )
 from youtube_audio_chunker.splitter import split_audio
-from youtube_audio_chunker.tagger import tag_chunks
+from youtube_audio_chunker.tagger import tag_chunks, tag_single
 
 
 @dataclass
 class SyncOptions:
     library_path: Path = LIBRARY_PATH
     output_dir: Path = OUTPUT_DIR
-    chunk_duration_seconds: int = DEFAULT_CHUNK_DURATION_SECONDS
+    chunk_duration_seconds: int | None = None
     artist: str | None = None
     keep_full: bool = False
     no_transfer: bool = False
@@ -62,12 +63,14 @@ def process_queue(options: SyncOptions) -> None:
 
 def _download_and_chunk_all(
     library: Library, options: SyncOptions
-) -> list[tuple[DownloadResult, Path]]:
+) -> list[tuple[DownloadResult, Path, ContentType]]:
     processed = []
     for entry in list(library.queue):
         result = _process_single_entry(entry, library, options)
         if result:
-            processed.append(result)
+            dl, episode_dir = result
+            content_type = ContentType(entry.content_type)
+            processed.append((dl, episode_dir, content_type))
     return processed
 
 
@@ -80,24 +83,40 @@ def _process_single_entry(
         return None
 
     dl = results[0]
-    episode_dir = _chunk_and_tag(dl, options)
+    content_type = ContentType(entry.content_type)
+    episode_dir = _prepare_episode(dl, content_type, options)
     _update_library_after_processing(library, entry, dl, episode_dir)
     return (dl, episode_dir)
 
 
-def _chunk_and_tag(dl: DownloadResult, options: SyncOptions) -> Path:
+def _should_chunk(content_type: ContentType, options: SyncOptions) -> bool:
+    if options.chunk_duration_seconds is not None:
+        return True
+    return content_type == ContentType.MUSIC
+
+
+def _prepare_episode(
+    dl: DownloadResult, content_type: ContentType, options: SyncOptions
+) -> Path:
     episode_dir = options.output_dir / dl.folder_name
     episode_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"Splitting: {dl.title}")
-    chunks = split_audio(dl.audio_path, episode_dir, options.chunk_duration_seconds)
-
     artist = options.artist or dl.artist
-    print(f"Tagging {len(chunks)} chunks")
-    tag_chunks(chunks, title=dl.title, total_chunks=len(chunks), artist=artist)
 
-    if not options.keep_full:
-        dl.audio_path.unlink(missing_ok=True)
+    if _should_chunk(content_type, options):
+        chunk_duration = (
+            options.chunk_duration_seconds or DEFAULT_CHUNK_DURATION_SECONDS
+        )
+        print(f"Splitting: {dl.title}")
+        chunks = split_audio(dl.audio_path, episode_dir, chunk_duration)
+        print(f"Tagging {len(chunks)} chunks")
+        tag_chunks(chunks, title=dl.title, total_chunks=len(chunks), artist=artist)
+        if not options.keep_full:
+            dl.audio_path.unlink(missing_ok=True)
+    else:
+        dest = episode_dir / dl.audio_path.name
+        dl.audio_path.rename(dest)
+        print(f"Tagging: {dl.title}")
+        tag_single(dest, title=dl.title, artist=artist, content_type=content_type)
 
     return episode_dir
 
@@ -117,7 +136,7 @@ def _update_library_after_processing(
 
 def _transfer_to_garmin(
     library: Library,
-    processed: list[tuple[DownloadResult, Path]],
+    processed: list[tuple[DownloadResult, Path, ContentType]],
     options: SyncOptions,
 ) -> None:
     garmin_mount = find_garmin_mount()
@@ -125,8 +144,10 @@ def _transfer_to_garmin(
         print("No Garmin watch detected. Episodes saved locally.")
         return
 
-    for dl, episode_dir in processed:
-        _transfer_single_episode(library, dl, episode_dir, garmin_mount, options)
+    for dl, episode_dir, content_type in processed:
+        _transfer_single_episode(
+            library, dl, episode_dir, content_type, garmin_mount, options
+        )
 
     save_library(library, options.library_path)
 
@@ -135,6 +156,7 @@ def _transfer_single_episode(
     library: Library,
     dl: DownloadResult,
     episode_dir: Path,
+    content_type: ContentType,
     garmin_mount: Path,
     options: SyncOptions,
 ) -> None:
@@ -148,7 +170,7 @@ def _transfer_single_episode(
             return
 
     print(f"Transferring: {dl.title}")
-    copy_to_garmin(episode_dir, garmin_mount)
+    copy_to_garmin(episode_dir, garmin_mount, content_type)
     mark_synced(library, dl.video_id)
     print(f"Synced: {dl.title}")
 

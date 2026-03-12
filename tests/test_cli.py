@@ -27,7 +27,7 @@ class TestBuildParser:
     def test_sync_defaults(self, parser):
         args = parser.parse_args(["sync"])
         assert args.command == "sync"
-        assert args.chunk_duration == 300
+        assert args.chunk_duration is None
         assert args.no_transfer is False
 
     def test_sync_with_options(self, parser):
@@ -105,7 +105,7 @@ class TestSyncCommand:
         mock_process.assert_called_once()
         opts = mock_process.call_args[0][0]
         assert opts.no_transfer is True
-        assert opts.chunk_duration_seconds == 300
+        assert opts.chunk_duration_seconds is None
 
 
 class TestListCommand:

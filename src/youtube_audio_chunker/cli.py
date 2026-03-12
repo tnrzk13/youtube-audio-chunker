@@ -8,7 +8,9 @@ import sys
 from pathlib import Path
 
 from youtube_audio_chunker.constants import (
+    ContentType,
     DEFAULT_CHUNK_DURATION_SECONDS,
+    GARMIN_DIRS,
     LIBRARY_PATH,
     OUTPUT_DIR,
 )
@@ -67,13 +69,21 @@ def build_parser() -> argparse.ArgumentParser:
 def _add_add_parser(subparsers) -> None:
     p = subparsers.add_parser("add", help="Add URLs to processing queue")
     p.add_argument("urls", nargs="+", help="YouTube video or playlist URLs")
+    p.add_argument(
+        "--type",
+        choices=[t.value for t in ContentType],
+        default=ContentType.MUSIC.value,
+        help="Content type: music (chunked, MUSIC/), podcast (single, Podcasts/), "
+        "audiobook (single, Audio books/). Default: music",
+    )
 
 
 def _add_sync_parser(subparsers) -> None:
     p = subparsers.add_parser("sync", help="Process queue, chunk, transfer to watch")
     p.add_argument(
-        "--chunk-duration", type=int, default=DEFAULT_CHUNK_DURATION_SECONDS,
-        help=f"Chunk duration in seconds (default: {DEFAULT_CHUNK_DURATION_SECONDS})",
+        "--chunk-duration", type=int, default=None,
+        help=f"Force chunking at this duration in seconds "
+        f"(default: {DEFAULT_CHUNK_DURATION_SECONDS} for music, disabled for podcast/audiobook)",
     )
     p.add_argument("--artist", help="Override artist name for ID3 tags")
     p.add_argument(
@@ -101,12 +111,19 @@ def _add_remove_parser(subparsers) -> None:
 
 def _handle_add(args) -> None:
     library = load_library()
+    content_type = args.type
     for url in args.urls:
         entries = extract_metadata(url)
         for entry in entries:
-            added = add_to_queue(library, url=url, title=entry["title"], video_id=entry["id"])
+            added = add_to_queue(
+                library,
+                url=url,
+                title=entry["title"],
+                video_id=entry["id"],
+                content_type=content_type,
+            )
             if added:
-                print(f"Added: {entry['title']}")
+                print(f"Added ({content_type}): {entry['title']}")
             else:
                 print(f"Skipped (already exists): {entry['title']}")
     save_library(library)
@@ -150,7 +167,11 @@ def _print_local(library) -> None:
     for ep in library.downloaded:
         size_mb = ep.total_size_bytes / 1_000_000
         synced = "synced" if ep.synced_at else "not synced"
-        print(f"  {ep.title} ({ep.chunk_count} chunks, {size_mb:.1f} MB, {synced})")
+        content_type = getattr(ep, "content_type", "music")
+        if ep.chunk_count == 1:
+            print(f"  {ep.title} ({content_type}, {size_mb:.1f} MB, {synced})")
+        else:
+            print(f"  {ep.title} ({content_type}, {ep.chunk_count} chunks, {size_mb:.1f} MB, {synced})")
     print()
 
 
@@ -166,7 +187,8 @@ def _print_watch() -> None:
         print("  (empty)")
     for ep in episodes:
         size_mb = ep.total_size_bytes / 1_000_000
-        print(f"  {ep.folder_name} ({size_mb:.1f} MB)")
+        location = ep.location or "MUSIC"
+        print(f"  {ep.folder_name} ({location}, {size_mb:.1f} MB)")
     print()
 
 

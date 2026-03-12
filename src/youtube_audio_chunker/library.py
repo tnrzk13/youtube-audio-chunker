@@ -7,7 +7,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from youtube_audio_chunker.constants import LIBRARY_PATH
+from youtube_audio_chunker.constants import ContentType, LIBRARY_PATH
 
 
 @dataclass
@@ -16,6 +16,7 @@ class QueueEntry:
     url: str
     title: str
     added_at: str
+    content_type: str = ContentType.MUSIC.value
 
 
 @dataclass
@@ -28,6 +29,7 @@ class DownloadedEpisode:
     total_size_bytes: int
     downloaded_at: str
     synced_at: str | None
+    content_type: str = ContentType.MUSIC.value
 
 
 @dataclass
@@ -56,7 +58,13 @@ def save_library(library: Library, path: Path = LIBRARY_PATH) -> None:
     path.write_text(json.dumps(data, indent=2))
 
 
-def add_to_queue(library: Library, url: str, title: str, video_id: str) -> bool:
+def add_to_queue(
+    library: Library,
+    url: str,
+    title: str,
+    video_id: str,
+    content_type: str = ContentType.MUSIC.value,
+) -> bool:
     """Add a video to the queue. Returns True if added, False if duplicate."""
     existing_ids = {e.video_id for e in library.queue} | {
         e.video_id for e in library.downloaded
@@ -69,6 +77,7 @@ def add_to_queue(library: Library, url: str, title: str, video_id: str) -> bool:
         url=url,
         title=title,
         added_at=datetime.now(timezone.utc).isoformat(),
+        content_type=content_type,
     )
     library.queue.append(entry)
     return True
@@ -87,6 +96,7 @@ def move_to_downloaded(
         total_size_bytes=episode_info["total_size_bytes"],
         downloaded_at=datetime.now(timezone.utc).isoformat(),
         synced_at=None,
+        content_type=queue_entry.content_type,
     )
     library.downloaded.append(episode)
     return library

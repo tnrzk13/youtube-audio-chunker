@@ -9,7 +9,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from youtube_audio_chunker.constants import GARMIN_MUSIC_DIR, GARMIN_MARKER_DIR
+from youtube_audio_chunker.constants import (
+    ContentType,
+    GARMIN_DIRS,
+    GARMIN_MARKER_DIR,
+)
 from youtube_audio_chunker.errors import GarminError
 
 
@@ -18,6 +22,7 @@ class GarminEpisode:
     folder_name: str
     total_size_bytes: int
     modified_at: float
+    location: str = ""
 
 
 def find_garmin_mount() -> Path | None:
@@ -28,10 +33,13 @@ def find_garmin_mount() -> Path | None:
     return None
 
 
-def copy_to_garmin(source_dir: Path, garmin_mount: Path) -> Path:
-    music_dir = garmin_mount / GARMIN_MUSIC_DIR
-    music_dir.mkdir(exist_ok=True)
-    dest = music_dir / source_dir.name
+def copy_to_garmin(
+    source_dir: Path,
+    garmin_mount: Path,
+    content_type: ContentType = ContentType.MUSIC,
+) -> Path:
+    target_dir = garmin_mount / GARMIN_DIRS[content_type]
+    target_dir.mkdir(exist_ok=True)
 
     source_size = _dir_size_bytes(source_dir)
     available = get_available_space_bytes(garmin_mount)
@@ -41,35 +49,64 @@ def copy_to_garmin(source_dir: Path, garmin_mount: Path) -> Path:
             f"have {available} bytes. Try removing old episodes first."
         )
 
-    shutil.copytree(source_dir, dest)
+    files = list(source_dir.glob("*.mp3"))
+    is_single_file = len(files) == 1
+
+    if is_single_file:
+        dest = target_dir / files[0].name
+        shutil.copy2(files[0], dest)
+    else:
+        dest = target_dir / source_dir.name
+        shutil.copytree(source_dir, dest)
+
     return dest
 
 
 def remove_from_garmin(folder_name: str, garmin_mount: Path) -> None:
-    target = garmin_mount / GARMIN_MUSIC_DIR / folder_name
-    if not target.exists():
-        raise GarminError(
-            f"Episode '{folder_name}' not found on Garmin at {target}."
-        )
-    shutil.rmtree(target)
+    for garmin_dir in GARMIN_DIRS.values():
+        parent = garmin_mount / garmin_dir
+        # Check for a subfolder match
+        target = parent / folder_name
+        if target.exists() and target.is_dir():
+            shutil.rmtree(target)
+            return
+        # Check for a single-file match (folder_name.mp3)
+        target_file = parent / f"{folder_name}.mp3"
+        if target_file.exists():
+            target_file.unlink()
+            return
+
+    searched = ", ".join(GARMIN_DIRS.values())
+    raise GarminError(
+        f"Episode '{folder_name}' not found on Garmin. Searched: {searched}."
+    )
 
 
 def list_garmin_episodes(garmin_mount: Path) -> list[GarminEpisode]:
-    music_dir = garmin_mount / GARMIN_MUSIC_DIR
-    if not music_dir.exists():
-        return []
-
     episodes = []
-    for folder in music_dir.iterdir():
-        if not folder.is_dir():
+    for content_type, garmin_dir in GARMIN_DIRS.items():
+        parent = garmin_mount / garmin_dir
+        if not parent.exists():
             continue
-        episodes.append(
-            GarminEpisode(
-                folder_name=folder.name,
-                total_size_bytes=_dir_size_bytes(folder),
-                modified_at=folder.stat().st_mtime,
-            )
-        )
+        for entry in parent.iterdir():
+            if entry.is_dir():
+                episodes.append(
+                    GarminEpisode(
+                        folder_name=entry.name,
+                        total_size_bytes=_dir_size_bytes(entry),
+                        modified_at=entry.stat().st_mtime,
+                        location=garmin_dir,
+                    )
+                )
+            elif entry.suffix == ".mp3":
+                episodes.append(
+                    GarminEpisode(
+                        folder_name=entry.stem,
+                        total_size_bytes=entry.stat().st_size,
+                        modified_at=entry.stat().st_mtime,
+                        location=garmin_dir,
+                    )
+                )
     return episodes
 
 
