@@ -9,7 +9,7 @@
 	let freePercent = $derived(100 - usedPercent);
 
 	let statusColor = $derived(
-		freePercent < 10 ? '#e53935' : freePercent < 20 ? '#ffa726' : '#43a047'
+		freePercent < 10 ? 'var(--color-critical)' : freePercent < 20 ? 'var(--color-warning)' : 'var(--color-success)'
 	);
 
 	function formatSize(bytes: number): string {
@@ -34,18 +34,18 @@
 	}
 	.bar {
 		height: 8px;
-		background: #eee;
-		border-radius: 4px;
+		background: var(--color-bar-track);
+		border-radius: var(--radius-sm);
 		overflow: hidden;
 	}
 	.bar-fill {
 		height: 100%;
-		border-radius: 4px;
+		border-radius: var(--radius-sm);
 		transition: width 0.3s;
-		background: #999;
+		background: var(--color-bar-fill);
 	}
 	.label {
-		font-size: 0.7rem;
+		font-size: var(--font-size-xs);
 		margin-top: 0.25rem;
 		text-align: center;
 	}

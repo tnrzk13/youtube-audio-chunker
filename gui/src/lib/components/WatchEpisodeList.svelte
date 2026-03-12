@@ -77,49 +77,49 @@
 <style>
 	.empty {
 		padding: 1rem;
-		color: #999;
-		font-size: 0.85rem;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-base);
 		text-align: center;
 	}
 	.disconnected {
-		color: #bbb;
+		color: var(--color-text-disabled);
 	}
 	.section-header {
-		font-size: 0.7rem;
+		font-size: var(--font-size-xs);
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: #888;
+		color: var(--color-text-hint);
 		padding: 0.5rem 0.75rem 0.2rem;
-		border-top: 1px solid #eee;
+		border-top: 1px solid var(--color-border-subtle);
 	}
 	.section-header:first-child {
 		border-top: none;
 	}
 	.btn-icon {
 		background: none;
-		border: 1px solid #ddd;
-		border-radius: 4px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
 		cursor: pointer;
 		padding: 0.15rem 0.4rem;
-		font-size: 0.75rem;
-		color: #999;
+		font-size: var(--font-size-sm);
+		color: var(--color-text-muted);
 		transition: all 0.15s;
 	}
 	.btn-icon:hover:not(:disabled) {
-		background: #fee;
-		color: #c00;
-		border-color: #c00;
+		background: var(--color-danger-bg);
+		color: var(--color-danger);
+		border-color: var(--color-danger);
 	}
 	.btn-icon:disabled {
 		opacity: 0.5;
 		cursor: default;
 	}
 	.error {
-		font-size: 0.75rem;
-		color: #c00;
+		font-size: var(--font-size-sm);
+		color: var(--color-danger);
 		padding: 0.4rem 0.75rem;
-		background: #fee;
-		border-bottom: 1px solid #fcc;
+		background: var(--color-danger-bg);
+		border-bottom: 1px solid var(--color-danger-border);
 	}
 </style>

@@ -18,24 +18,24 @@
 <style>
 	.progress-panel {
 		padding: 0.5rem 1rem;
-		background: #f5f5f5;
-		border-top: 1px solid #ddd;
+		background: var(--color-bg-progress);
+		border-top: 1px solid var(--color-border);
 	}
 	.progress-message {
-		font-size: 0.8rem;
-		color: #333;
+		font-size: var(--font-size-md);
+		color: var(--color-text);
 		margin-bottom: 0.3rem;
 	}
 	.progress-bar {
 		height: 6px;
-		background: #ddd;
-		border-radius: 4px;
+		background: var(--color-border);
+		border-radius: var(--radius-sm);
 		overflow: hidden;
 	}
 	.progress-fill {
 		height: 100%;
-		background: #1976d2;
-		border-radius: 4px;
+		background: var(--color-primary);
+		border-radius: var(--radius-sm);
 		transition: width 0.3s;
 	}
 </style>

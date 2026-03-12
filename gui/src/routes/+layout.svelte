@@ -17,8 +17,8 @@
 		margin: 0;
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 		font-size: 14px;
-		color: #333;
-		background: #fafafa;
+		color: var(--color-text);
+		background: var(--color-bg-page);
 	}
 	:global(*, *::before, *::after) {
 		box-sizing: border-box;

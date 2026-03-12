@@ -18,16 +18,19 @@
 	let syncing = $state(false);
 	let transferring = $state(false);
 
-	onMount(async () => {
-		await Promise.all([refreshLibrary(), refreshGarmin()]);
-		const unlisten = await initProgressListener();
+	onMount(() => {
+		let unlisten: (() => void) | undefined;
+		let interval: ReturnType<typeof setInterval> | undefined;
 
-		// Poll garmin status every 5 seconds
-		const interval = setInterval(refreshGarmin, 5000);
+		(async () => {
+			await Promise.all([refreshLibrary(), refreshGarmin()]);
+			unlisten = await initProgressListener();
+			interval = setInterval(refreshGarmin, 5000);
+		})();
 
 		return () => {
-			unlisten();
-			clearInterval(interval);
+			unlisten?.();
+			if (interval) clearInterval(interval);
 		};
 	});
 
@@ -125,18 +128,18 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.5rem 1rem;
-		border-bottom: 1px solid #ddd;
-		background: #fff;
+		border-bottom: 1px solid var(--color-border);
+		background: var(--color-bg-panel);
 		flex-shrink: 0;
 	}
 	h1 {
-		font-size: 1rem;
+		font-size: var(--font-size-lg);
 		font-weight: 600;
 		margin: 0;
 	}
 	.settings-link {
-		font-size: 0.8rem;
-		color: #1976d2;
+		font-size: var(--font-size-md);
+		color: var(--color-primary);
 		text-decoration: none;
 		transition: color 0.15s;
 	}
@@ -153,16 +156,16 @@
 	.flow-arrow {
 		display: flex;
 		align-items: center;
-		color: #ccc;
-		font-size: 1rem;
+		color: var(--color-border-light);
+		font-size: var(--font-size-lg);
 		padding: 0 0.15rem;
 		user-select: none;
 	}
 	.column {
 		display: flex;
 		flex-direction: column;
-		border-right: 1px solid #ddd;
-		background: #fff;
+		border-right: 1px solid var(--color-border);
+		background: var(--color-bg-panel);
 		overflow: hidden;
 	}
 	.column:last-child {
@@ -173,17 +176,17 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.5rem 0.75rem;
-		border-bottom: 1px solid #eee;
-		background: #fafafa;
+		border-bottom: 1px solid var(--color-border-subtle);
+		background: var(--color-bg-page);
 		flex-shrink: 0;
 	}
 	.column-header h2 {
-		font-size: 0.85rem;
+		font-size: var(--font-size-base);
 		font-weight: 600;
 		margin: 0;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: #555;
+		color: var(--color-text-secondary);
 	}
 	.column-scroll {
 		flex: 1;
@@ -192,32 +195,32 @@
 	.status-dot {
 		width: 8px;
 		height: 8px;
-		border-radius: 50%;
-		background: #ccc;
+		border-radius: var(--radius-full);
+		background: var(--color-border-light);
 		transition: background 0.15s;
 	}
 	.status-dot.connected {
-		background: #43a047;
+		background: var(--color-success);
 	}
 	.actions-bar {
 		display: flex;
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
-		border-top: 1px solid #ddd;
-		background: #fff;
+		border-top: 1px solid var(--color-border);
+		background: var(--color-bg-panel);
 		flex-shrink: 0;
 	}
 	.actions-bar button {
-		font-size: 0.8rem;
+		font-size: var(--font-size-md);
 		padding: 0.4rem 1rem;
-		border: 1px solid #ddd;
-		border-radius: 6px;
-		background: #fff;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-bg-panel);
 		cursor: pointer;
 		transition: all 0.15s;
 	}
 	.actions-bar button:hover:not(:disabled) {
-		background: #f5f5f5;
+		background: var(--color-bg-button-hover);
 	}
 	.actions-bar button:disabled {
 		opacity: 0.5;

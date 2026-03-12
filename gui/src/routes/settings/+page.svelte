@@ -84,17 +84,17 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.5rem 1rem;
-		border-bottom: 1px solid #ddd;
-		background: #fff;
+		border-bottom: 1px solid var(--color-border);
+		background: var(--color-bg-panel);
 	}
 	h1 {
-		font-size: 1rem;
+		font-size: var(--font-size-lg);
 		font-weight: 600;
 		margin: 0;
 	}
 	.back-link {
-		font-size: 0.8rem;
-		color: #1976d2;
+		font-size: var(--font-size-md);
+		color: var(--color-primary);
 		text-decoration: none;
 		transition: color 0.15s;
 	}
@@ -111,7 +111,7 @@
 	}
 	label {
 		display: block;
-		font-size: 0.85rem;
+		font-size: var(--font-size-base);
 		font-weight: 500;
 		margin-bottom: 0.3rem;
 	}
@@ -119,35 +119,35 @@
 	input[type='text'] {
 		width: 100%;
 		padding: 0.4rem;
-		font-size: 0.85rem;
-		border: 1px solid #ddd;
-		border-radius: 6px;
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
 		transition: border-color 0.15s;
 	}
 	input[type='number']:focus,
 	input[type='text']:focus {
 		outline: none;
-		border-color: #1976d2;
+		border-color: var(--color-primary);
 	}
 	select {
 		width: 100%;
 		padding: 0.4rem;
-		font-size: 0.85rem;
-		border: 1px solid #ddd;
-		border-radius: 6px;
-		background: #fff;
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-bg-panel);
 		transition: border-color 0.15s;
 	}
 	select:focus {
 		outline: none;
-		border-color: #1976d2;
+		border-color: var(--color-primary);
 	}
 	input[type='checkbox'] {
 		margin-right: 0.4rem;
 	}
 	.hint {
-		font-size: 0.75rem;
-		color: #888;
+		font-size: var(--font-size-sm);
+		color: var(--color-text-hint);
 		margin: 0.2rem 0 0;
 	}
 	.actions {
@@ -156,23 +156,23 @@
 		gap: 0.5rem;
 	}
 	button {
-		font-size: 0.85rem;
+		font-size: var(--font-size-base);
 		padding: 0.4rem 1.2rem;
-		border: 1px solid #1976d2;
-		border-radius: 6px;
-		background: #1976d2;
+		border: 1px solid var(--color-primary);
+		border-radius: var(--radius-md);
+		background: var(--color-primary);
 		color: #fff;
 		cursor: pointer;
 		transition: all 0.15s;
 	}
 	button:hover:not(:disabled) {
-		background: #1565c0;
+		background: var(--color-primary-hover);
 	}
 	button:disabled {
 		opacity: 0.5;
 	}
 	.saved-msg {
-		font-size: 0.8rem;
-		color: #43a047;
+		font-size: var(--font-size-md);
+		color: var(--color-success);
 	}
 </style>

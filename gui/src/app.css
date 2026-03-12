@@ -1,0 +1,69 @@
+:root {
+  /* Primary */
+  --color-primary: #1976d2;
+  --color-primary-hover: #1565c0;
+  --color-primary-light: #e3f2fd;
+
+  /* Danger */
+  --color-danger: #c00;
+  --color-danger-confirm: #d32f2f;
+  --color-danger-confirm-hover: #c62828;
+  --color-danger-bg: #fee;
+  --color-danger-border: #fcc;
+
+  /* Status */
+  --color-success: #43a047;
+  --color-warning: #ffa726;
+  --color-critical: #e53935;
+
+  /* Text */
+  --color-text: #333;
+  --color-text-secondary: #555;
+  --color-text-subtitle: #666;
+  --color-text-hint: #888;
+  --color-text-muted: #999;
+  --color-text-disabled: #bbb;
+
+  /* Backgrounds */
+  --color-bg-page: #fafafa;
+  --color-bg-panel: #fff;
+  --color-bg-progress: #f5f5f5;
+  --color-bg-hover: #f8f9fa;
+  --color-bg-button-hover: #f5f5f5;
+
+  /* Borders */
+  --color-border: #ddd;
+  --color-border-subtle: #eee;
+  --color-border-light: #ccc;
+
+  /* Badges */
+  --color-badge-music-bg: #e3f2fd;
+  --color-badge-music-text: #1565c0;
+  --color-badge-podcast-bg: #f3e5f5;
+  --color-badge-podcast-text: #7b1fa2;
+  --color-badge-audiobook-bg: #fff3e0;
+  --color-badge-audiobook-text: #e65100;
+
+  /* Overlay / shadow */
+  --color-overlay: rgba(0, 0, 0, 0.4);
+
+  /* Bar */
+  --color-bar-track: #eee;
+  --color-bar-fill: #999;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 50%;
+
+  /* Shadows */
+  --shadow-dialog: 0 4px 24px rgba(0, 0, 0, 0.2);
+
+  /* Font sizes */
+  --font-size-xs: 0.7rem;
+  --font-size-sm: 0.75rem;
+  --font-size-md: 0.8rem;
+  --font-size-base: 0.85rem;
+  --font-size-lg: 1rem;
+}

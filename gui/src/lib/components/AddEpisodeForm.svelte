@@ -79,22 +79,22 @@
 <style>
 	.add-form {
 		padding: 0.5rem 0.75rem;
-		border-bottom: 1px solid #eee;
+		border-bottom: 1px solid var(--color-border-subtle);
 	}
 	textarea {
 		width: 100%;
 		font-family: inherit;
-		font-size: 0.8rem;
+		font-size: var(--font-size-md);
 		padding: 0.4rem;
-		border: 1px solid #ddd;
-		border-radius: 6px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
 		resize: vertical;
 		box-sizing: border-box;
 		transition: border-color 0.15s;
 	}
 	textarea:focus {
 		outline: none;
-		border-color: #1976d2;
+		border-color: var(--color-primary);
 	}
 	.form-row {
 		display: flex;
@@ -102,38 +102,38 @@
 		margin-top: 0.4rem;
 	}
 	select {
-		font-size: 0.8rem;
+		font-size: var(--font-size-md);
 		padding: 0.3rem 0.4rem;
-		border: 1px solid #ddd;
-		border-radius: 6px;
-		background: #fff;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-bg-panel);
 		transition: border-color 0.15s;
 	}
 	select:focus {
 		outline: none;
-		border-color: #1976d2;
+		border-color: var(--color-primary);
 	}
 	button {
-		font-size: 0.8rem;
+		font-size: var(--font-size-md);
 		padding: 0.3rem 0.75rem;
-		border: 1px solid #1976d2;
-		border-radius: 6px;
-		background: #1976d2;
+		border: 1px solid var(--color-primary);
+		border-radius: var(--radius-md);
+		background: var(--color-primary);
 		color: #fff;
 		cursor: pointer;
 		white-space: nowrap;
 		transition: all 0.15s;
 	}
 	button:hover:not(:disabled) {
-		background: #1565c0;
+		background: var(--color-primary-hover);
 	}
 	button:disabled {
 		opacity: 0.5;
 		cursor: default;
 	}
 	.error {
-		font-size: 0.75rem;
-		color: #c00;
+		font-size: var(--font-size-sm);
+		color: var(--color-danger);
 		margin-top: 0.3rem;
 	}
 </style>

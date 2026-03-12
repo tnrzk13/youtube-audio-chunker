@@ -38,12 +38,12 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.5rem 0.75rem;
-		border-bottom: 1px solid #eee;
+		border-bottom: 1px solid var(--color-border-subtle);
 		gap: 0.5rem;
 		transition: background 0.15s;
 	}
 	.card:hover {
-		background: #f8f9fa;
+		background: var(--color-bg-hover);
 	}
 	.card:last-child {
 		border-bottom: none;
@@ -53,7 +53,7 @@
 		min-width: 0;
 	}
 	.card-title {
-		font-size: 0.85rem;
+		font-size: var(--font-size-base);
 		font-weight: 500;
 		white-space: nowrap;
 		overflow: hidden;
@@ -66,8 +66,8 @@
 		margin-top: 0.2rem;
 	}
 	.subtitle {
-		font-size: 0.75rem;
-		color: #666;
+		font-size: var(--font-size-sm);
+		color: var(--color-text-subtitle);
 	}
 	.card-actions {
 		flex-shrink: 0;
