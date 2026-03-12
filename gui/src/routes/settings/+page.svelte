@@ -4,6 +4,7 @@
 
 	const settings = getSettings();
 
+	let defaultContentType = $state('podcast');
 	let chunkDuration = $state(300);
 	let defaultArtist = $state('');
 	let keepFull = $state(false);
@@ -12,6 +13,7 @@
 
 	onMount(async () => {
 		await refreshSettings();
+		defaultContentType = settings.data.default_content_type ?? 'podcast';
 		chunkDuration = settings.data.chunk_duration_seconds ?? 300;
 		defaultArtist = settings.data.default_artist ?? '';
 		keepFull = settings.data.keep_full ?? false;
@@ -21,6 +23,7 @@
 		saving = true;
 		saved = false;
 		await saveSettings({
+			default_content_type: defaultContentType,
 			chunk_duration_seconds: chunkDuration,
 			default_artist: defaultArtist || undefined,
 			keep_full: keepFull,
@@ -38,6 +41,15 @@
 </header>
 
 <main class="settings">
+	<div class="field">
+		<label for="default-content-type">Default content type</label>
+		<select id="default-content-type" bind:value={defaultContentType}>
+			<option value="podcast">Podcast</option>
+			<option value="music">Music</option>
+			<option value="audiobook">Audiobook</option>
+		</select>
+	</div>
+
 	<div class="field">
 		<label for="chunk-duration">Chunk duration (seconds)</label>
 		<input id="chunk-duration" type="number" bind:value={chunkDuration} min="30" step="30" />
@@ -109,6 +121,14 @@
 		font-size: 0.85rem;
 		border: 1px solid #ddd;
 		border-radius: 4px;
+	}
+	select {
+		width: 100%;
+		padding: 0.4rem;
+		font-size: 0.85rem;
+		border: 1px solid #ddd;
+		border-radius: 4px;
+		background: #fff;
 	}
 	input[type='checkbox'] {
 		margin-right: 0.4rem;

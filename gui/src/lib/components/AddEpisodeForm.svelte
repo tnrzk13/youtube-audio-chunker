@@ -1,12 +1,21 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { addToQueue, processQueue } from '$lib/stores/library.svelte';
+	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
 	import { setActive } from '$lib/stores/progress.svelte';
 	import type { ContentType } from '$lib/types';
 
+	const settings = getSettings();
+
 	let urlInput = $state('');
-	let contentType = $state<ContentType>('music');
+	let contentType = $state<ContentType>('podcast');
 	let submitting = $state(false);
 	let errorMsg = $state('');
+
+	onMount(async () => {
+		await refreshSettings();
+		contentType = (settings.data.default_content_type as ContentType) ?? 'podcast';
+	});
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
