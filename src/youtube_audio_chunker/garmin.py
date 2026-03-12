@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import platform
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -77,6 +78,13 @@ def get_available_space_bytes(garmin_mount: Path) -> int:
 
 
 def _get_removable_mountpoints() -> list[Path]:
+    system = platform.system()
+    if system == "Darwin":
+        return _get_removable_mountpoints_macos()
+    return _get_removable_mountpoints_linux()
+
+
+def _get_removable_mountpoints_linux() -> list[Path]:
     result = subprocess.run(
         ["lsblk", "-J", "-o", "NAME,RM,MOUNTPOINTS"],
         capture_output=True,
@@ -86,7 +94,7 @@ def _get_removable_mountpoints() -> list[Path]:
         return []
 
     data = json.loads(result.stdout)
-    mountpoints = []
+    mountpoints: list[Path] = []
     for device in data.get("blockdevices", []):
         _collect_mountpoints(device, mountpoints)
     return mountpoints
@@ -101,6 +109,34 @@ def _collect_mountpoints(device: dict, result: list[Path]) -> None:
                     result.append(path)
     for child in device.get("children", []):
         _collect_mountpoints(child, result)
+
+
+def _get_removable_mountpoints_macos() -> list[Path]:
+    volumes = Path("/Volumes")
+    if not volumes.is_dir():
+        return []
+
+    mountpoints = []
+    for entry in volumes.iterdir():
+        if not entry.is_dir() or entry.name == "Macintosh HD":
+            continue
+        if _is_removable_macos(entry):
+            mountpoints.append(entry)
+    return mountpoints
+
+
+def _is_removable_macos(volume: Path) -> bool:
+    result = subprocess.run(
+        ["diskutil", "info", str(volume)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False
+    for line in result.stdout.splitlines():
+        if "Removable Media" in line and "Yes" in line:
+            return True
+    return False
 
 
 def _dir_size_bytes(path: Path) -> int:
