@@ -16,15 +16,47 @@ A Tauri desktop app provides a three-column dashboard for managing your audio pi
 
 The app includes light/dark theme toggle, real-time progress tracking, configurable settings (chunk duration, default content type, artist name), and space management for the watch.
 
-### Running the desktop app
+### Installing the desktop app
+
+Run the setup script to check and install all dependencies automatically:
+
+```bash
+./setup.sh
+```
+
+Then build an installable package with:
+
+```bash
+cd gui
+npm install
+npm run tauri build
+```
+
+Requires [Rust](https://rustup.rs/) and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) in addition to the Python backend.
+
+**Linux** - installs via the `.deb` package, which adds the app to your launcher:
+
+```bash
+sudo dpkg -i src-tauri/target/release/bundle/deb/*.deb
+```
+
+An AppImage is also produced at `src-tauri/target/release/bundle/appimage/` if you prefer a portable executable that requires no installation.
+
+**macOS** - installs via the `.dmg`:
+
+```bash
+open src-tauri/target/release/bundle/dmg/*.dmg
+```
+
+Drag the app to your Applications folder, then launch it from Spotlight or Finder.
+
+### Running in development mode
 
 ```bash
 cd gui
 npm install
 npx tauri dev
 ```
-
-Requires [Rust](https://rustup.rs/) and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) in addition to the Python backend.
 
 ### Tech stack
 
