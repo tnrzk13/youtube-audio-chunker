@@ -233,6 +233,7 @@
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
 		background: var(--color-bg-panel);
+		color: var(--color-text);
 		cursor: pointer;
 		transition: all 0.15s;
 	}

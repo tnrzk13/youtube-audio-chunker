@@ -76,6 +76,8 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
+
   /* Primary */
   --color-primary: #64b5f6;
   --color-primary-hover: #90caf9;

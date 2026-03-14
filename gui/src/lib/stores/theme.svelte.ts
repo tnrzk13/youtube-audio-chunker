@@ -1,3 +1,8 @@
+// Apply saved theme to DOM before first render
+if (typeof localStorage !== 'undefined' && localStorage.getItem('theme') === 'dark') {
+	document.documentElement.setAttribute('data-theme', 'dark');
+}
+
 let current = $state<'light' | 'dark'>(
 	(typeof localStorage !== 'undefined' && localStorage.getItem('theme') === 'dark')
 		? 'dark'
