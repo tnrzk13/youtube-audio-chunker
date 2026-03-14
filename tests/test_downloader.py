@@ -3,11 +3,11 @@ from unittest.mock import patch, MagicMock, ANY
 
 import pytest
 
+from youtube_audio_chunker.constants import sanitize_filename
 from youtube_audio_chunker.downloader import (
     download_audio,
     extract_metadata,
     DownloadResult,
-    _sanitize_filename,
 )
 from youtube_audio_chunker.errors import DownloadError
 
@@ -21,19 +21,24 @@ def output_dir(tmp_path):
 
 class TestSanitizeFilename:
     def test_strips_fat32_illegal_chars(self):
-        assert _sanitize_filename('a/b\\c:d*e?"f<g>h|i') == "abcdefghi"
+        assert sanitize_filename('a/b\\c:d*e?"f<g>h|i') == "abcdefghi"
 
     def test_replaces_spaces_with_hyphens(self):
-        assert _sanitize_filename("hello world test") == "hello-world-test"
+        assert sanitize_filename("hello world test") == "hello-world-test"
 
     def test_collapses_multiple_hyphens(self):
-        assert _sanitize_filename("a - b -- c") == "a-b-c"
+        assert sanitize_filename("a - b -- c") == "a-b-c"
 
     def test_strips_leading_trailing_hyphens(self):
-        assert _sanitize_filename(" -hello- ") == "hello"
+        assert sanitize_filename(" -hello- ") == "hello"
 
     def test_preserves_normal_chars(self):
-        assert _sanitize_filename("My-Podcast_Episode01") == "My-Podcast_Episode01"
+        assert sanitize_filename("My-Podcast_Episode01") == "My-Podcast_Episode01"
+
+    def test_strips_fullwidth_equivalents_from_ytdlp(self):
+        """yt-dlp replaces FAT32 illegal chars with fullwidth Unicode equivalents."""
+        assert sanitize_filename("Game Theory #12： The Law") == "Game-Theory-#12-The-Law"
+        assert sanitize_filename("What＊Is＊This？") == "WhatIsThis"
 
 
 class TestExtractMetadata:

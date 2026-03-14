@@ -73,7 +73,7 @@ def copy_to_garmin(
     is_single_file = len(files) == 1
 
     if is_single_file:
-        dest = target_dir / files[0].name
+        dest = target_dir / (source_dir.name + files[0].suffix)
         _copy_file(files[0], dest)
     else:
         dest = target_dir / source_dir.name
@@ -132,6 +132,10 @@ def list_garmin_episodes(garmin_mount: Path) -> list[GarminEpisode]:
 
 def get_available_space_bytes(garmin_mount: Path) -> int:
     return shutil.disk_usage(garmin_mount).free
+
+
+def get_total_space_bytes(garmin_mount: Path) -> int:
+    return shutil.disk_usage(garmin_mount).total
 
 
 def _get_mtp_mountpoints() -> list[Path]:

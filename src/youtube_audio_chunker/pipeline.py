@@ -229,20 +229,26 @@ def _confirm_removal() -> bool:
 
 
 def transfer_unsynced(library_path: Path = LIBRARY_PATH) -> None:
-    """Transfer all downloaded-but-not-synced episodes to the watch."""
+    """Transfer all local episodes not currently on the watch."""
     library = load_library(library_path)
-    unsynced = [ep for ep in library.downloaded if ep.synced_at is None]
-
-    if not unsynced:
-        print("No unsynced episodes to transfer.")
-        return
 
     garmin_mount = find_garmin_mount()
     if garmin_mount is None:
         print("No Garmin watch detected.")
         return
 
-    for ep in unsynced:
+    garmin_episodes = list_garmin_episodes(garmin_mount)
+    on_watch = {ep.folder_name for ep in garmin_episodes}
+    not_on_watch = [
+        ep for ep in library.downloaded
+        if ep.folder_name not in on_watch
+    ]
+
+    if not not_on_watch:
+        print("No unsynced episodes to transfer.")
+        return
+
+    for ep in not_on_watch:
         _transfer_local_episode(library, ep, garmin_mount)
 
     save_library(library, library_path)

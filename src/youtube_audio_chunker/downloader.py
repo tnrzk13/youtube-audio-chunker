@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,7 +10,7 @@ import yt_dlp
 from youtube_audio_chunker.constants import (
     DEFAULT_AUDIO_BITRATE,
     DEFAULT_AUDIO_FORMAT,
-    FAT32_ILLEGAL_CHARS,
+    sanitize_filename,
 )
 from youtube_audio_chunker.errors import DownloadError
 
@@ -76,7 +75,7 @@ def _build_results(info: dict, output_dir: Path) -> list[DownloadResult]:
         if entry is None:
             continue
         title = entry.get("title", "Unknown")
-        folder_name = _sanitize_filename(title)
+        folder_name = sanitize_filename(title)
         audio_path = _find_audio_file(output_dir, title)
         results.append(
             DownloadResult(
@@ -91,11 +90,11 @@ def _build_results(info: dict, output_dir: Path) -> list[DownloadResult]:
 
 
 def _find_audio_file(output_dir: Path, title: str) -> Path:
-    sanitized = _sanitize_filename(title)
+    sanitized = sanitize_filename(title)
     for ext in ("mp3", "m4a", "opus", "webm"):
         candidates = list(output_dir.glob(f"*.{ext}"))
         for c in candidates:
-            if _sanitize_filename(c.stem) == sanitized:
+            if sanitize_filename(c.stem) == sanitized:
                 return c
     # Fallback: return first mp3
     mp3s = list(output_dir.glob("*.mp3"))
@@ -105,12 +104,3 @@ def _find_audio_file(output_dir: Path, title: str) -> Path:
         f"Downloaded file not found for '{title}' in {output_dir}. "
         "Try checking if ffmpeg postprocessing completed."
     )
-
-
-def _sanitize_filename(name: str) -> str:
-    for ch in FAT32_ILLEGAL_CHARS:
-        name = name.replace(ch, "")
-    name = name.replace(" ", "-")
-    name = re.sub(r"-{2,}", "-", name)
-    name = name.strip("-")
-    return name

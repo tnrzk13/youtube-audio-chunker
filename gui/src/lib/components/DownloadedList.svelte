@@ -16,6 +16,15 @@
 		return mb < 1 ? `${(bytes / 1000).toFixed(0)} KB` : `${mb.toFixed(1)} MB`;
 	}
 
+	function normalizeName(name: string): string {
+		return name.replace(/[\/:*?"<>|＼／：＊？＂＜＞｜]/g, '').replace(/\s+/g, '-').replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
+	}
+
+	function isOnWatch(ep: DownloadedEpisode): boolean {
+		const normalized = normalizeName(ep.folder_name);
+		return garmin.data.episodes.some((e) => normalizeName(e.folder_name) === normalized);
+	}
+
 	function subtitle(ep: DownloadedEpisode): string {
 		const size = formatSize(ep.total_size_bytes);
 		const chunks = ep.chunk_count === 1 ? '1 file' : `${ep.chunk_count} chunks`;
@@ -52,7 +61,7 @@
 	{#each episodes as ep (ep.video_id)}
 		<EpisodeCard title={ep.title} contentType={ep.content_type} subtitle={subtitle(ep)}>
 			{#snippet actions()}
-				{#if !ep.synced_at && garmin.data.connected}
+				{#if !isOnWatch(ep) && garmin.data.connected}
 					<button
 						class="btn-transfer"
 						onclick={() => handleTransfer(ep.video_id)}
@@ -61,6 +70,8 @@
 					>
 						{transferringId === ep.video_id ? '...' : '\u2192'}
 					</button>
+				{:else if !isOnWatch(ep) && !garmin.data.connected && !ep.synced_at}
+					<span class="connect-hint" title="Connect watch to sync">&#8987;</span>
 				{/if}
 				<button
 					class="btn-icon"
@@ -93,5 +104,11 @@
 	.btn-transfer:disabled {
 		opacity: 0.5;
 		cursor: default;
+	}
+	.connect-hint {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-muted);
+		cursor: default;
+		padding: 0.15rem 0.2rem;
 	}
 </style>

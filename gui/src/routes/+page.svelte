@@ -60,9 +60,17 @@
 		}
 	}
 
-	let unsyncedCount = $derived(
-		library.data.downloaded.filter((e) => e.synced_at === null).length
-	);
+	function normalizeName(name: string): string {
+		return name.replace(/[\/:*?"<>|＼／：＊？＂＜＞｜]/g, '').replace(/\s+/g, '-').replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
+	}
+
+	let unsyncedCount = $derived.by(() => {
+		if (!garmin.data.connected) {
+			return library.data.downloaded.filter((e) => e.synced_at === null).length;
+		}
+		const onWatch = new Set(garmin.data.episodes.map((e) => normalizeName(e.folder_name)));
+		return library.data.downloaded.filter((e) => !onWatch.has(normalizeName(e.folder_name))).length;
+	});
 </script>
 
 <header class="toolbar">

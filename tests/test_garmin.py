@@ -11,6 +11,7 @@ from youtube_audio_chunker.garmin import (
     remove_from_garmin,
     list_garmin_episodes,
     get_available_space_bytes,
+    get_total_space_bytes,
     GarminEpisode,
 )
 from youtube_audio_chunker.errors import GarminError
@@ -141,6 +142,33 @@ class TestCopyToGarmin:
         assert len(list(dest.iterdir())) == 2
         assert result == dest
 
+    def test_single_file_uses_folder_name(self, fake_garmin, tmp_path):
+        """Single-file episode should use the source dir name on watch,
+        not the original mp3 filename, so folder_name cross-reference works."""
+        source = tmp_path / "src" / "My-Cool-Title"
+        source.mkdir(parents=True)
+        # yt-dlp often creates filenames with spaces, while the episode
+        # folder uses the sanitized name (spaces -> dashes)
+        (source / "My Cool Title.mp3").write_bytes(b"\x00" * 100)
+
+        copy_to_garmin(source, fake_garmin)
+
+        assert (fake_garmin / "Music" / "My-Cool-Title.mp3").exists()
+        assert not (fake_garmin / "Music" / "My Cool Title.mp3").exists()
+
+    def test_single_file_roundtrip_folder_name(self, fake_garmin, tmp_path):
+        """After copying a single-file episode, list_garmin_episodes should
+        return a folder_name matching the source directory name."""
+        source = tmp_path / "src" / "My-Cool-Title"
+        source.mkdir(parents=True)
+        (source / "My Cool Title.mp3").write_bytes(b"\x00" * 100)
+
+        copy_to_garmin(source, fake_garmin)
+        episodes = list_garmin_episodes(fake_garmin)
+
+        names = {e.folder_name for e in episodes}
+        assert "My-Cool-Title" in names
+
     def test_raises_error_when_insufficient_space(self, fake_garmin, tmp_path):
         source = tmp_path / "src" / "Huge-File"
         source.mkdir(parents=True)
@@ -166,10 +194,10 @@ class TestCopyToGarmin:
             f"{MODULE}.get_available_space_bytes",
             return_value=1_000_000,
         ):
-            result = copy_to_garmin(source, garmin_mount)
+            copy_to_garmin(source, garmin_mount)
 
-        # Single file gets copied directly, not as a subfolder
-        assert (garmin_mount / "Music" / "01.mp3").exists()
+        # Single file uses folder name, not original filename
+        assert (garmin_mount / "Music" / "Ep.mp3").exists()
 
 
 class TestRemoveFromGarmin:
@@ -206,3 +234,11 @@ class TestGetAvailableSpaceBytes:
         mock_usage.return_value = MagicMock(free=500_000_000)
         result = get_available_space_bytes(fake_garmin)
         assert result == 500_000_000
+
+
+class TestGetTotalSpaceBytes:
+    @patch(f"{MODULE}.shutil.disk_usage")
+    def test_returns_total_space(self, mock_usage, fake_garmin):
+        mock_usage.return_value = MagicMock(total=8_000_000_000)
+        result = get_total_space_bytes(fake_garmin)
+        assert result == 8_000_000_000

@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from pathlib import Path
 
@@ -12,6 +13,8 @@ OUTPUT_DIR = APP_DIR / "output"
 GARMIN_MARKER_DIR = "GARMIN"
 
 FAT32_ILLEGAL_CHARS = r'\/:*?"<>|'
+# yt-dlp replaces FAT32 illegal chars with fullwidth Unicode equivalents
+FULLWIDTH_ILLEGAL_CHARS = '＼／：＊？＂＜＞｜'
 
 
 class ContentType(str, Enum):
@@ -25,3 +28,12 @@ GARMIN_DIRS = {
     ContentType.PODCAST: "Podcasts",
     ContentType.AUDIOBOOK: "Audiobooks",
 }
+
+
+def sanitize_filename(name: str) -> str:
+    for ch in FAT32_ILLEGAL_CHARS + FULLWIDTH_ILLEGAL_CHARS:
+        name = name.replace(ch, "")
+    name = name.replace(" ", "-")
+    name = re.sub(r"-{2,}", "-", name)
+    name = name.strip("-")
+    return name
