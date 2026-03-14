@@ -35,6 +35,7 @@ impl SidecarManager {
 
         let mut child = Command::new(&python)
             .args(["-m", "youtube_audio_chunker.sidecar"])
+            .env("PATH", augmented_path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -178,17 +179,76 @@ fn handle_reverse_request(
     let _ = stdin_guard.flush();
 }
 
+/// Build a PATH that includes common user-managed Python install dirs so that
+/// the sidecar process works even when the app is launched from a desktop
+/// shortcut (which inherits only the minimal system PATH, omitting e.g. pyenv).
+fn augmented_path() -> String {
+    let system_path = std::env::var("PATH").unwrap_or_default();
+    let mut extra: Vec<String> = Vec::new();
+
+    if let Ok(home) = std::env::var("HOME") {
+        extra.push(format!("{home}/.pyenv/shims"));
+        extra.push(format!("{home}/.pyenv/bin"));
+        extra.push(format!("{home}/.local/bin"));
+        extra.push(format!("{home}/anaconda3/bin"));
+        extra.push(format!("{home}/miniconda3/bin"));
+        extra.push(format!("{home}/mambaforge/bin"));
+    }
+
+    // Prepend extra dirs so they take priority over the minimal system PATH.
+    let mut parts: Vec<&str> = extra.iter().map(String::as_str).collect();
+    if !system_path.is_empty() {
+        parts.push(&system_path);
+    }
+    parts.join(":")
+}
+
 fn find_python() -> Option<String> {
-    for name in &["python3", "python"] {
-        if Command::new(name)
-            .arg("--version")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .is_ok()
-        {
-            return Some(name.to_string());
+    let mut candidates = vec!["python3".to_string(), "python".to_string()];
+
+    // Desktop-launched apps don't inherit shell PATH (e.g. pyenv shims).
+    // Add common non-system install locations so the sidecar can be found.
+    if let Ok(home) = std::env::var("HOME") {
+        candidates.push(format!("{home}/.pyenv/shims/python3"));
+        candidates.push(format!("{home}/.pyenv/shims/python"));
+        candidates.push(format!("{home}/.local/bin/python3"));
+        candidates.push(format!("{home}/anaconda3/bin/python3"));
+        candidates.push(format!("{home}/miniconda3/bin/python3"));
+        candidates.push(format!("{home}/mambaforge/bin/python3"));
+    }
+
+    // Prefer a Python that already has the sidecar module installed.
+    let mut first_working = None;
+    for candidate in &candidates {
+        if !python_runs(candidate) {
+            continue;
+        }
+        if first_working.is_none() {
+            first_working = Some(candidate.clone());
+        }
+        if module_importable(candidate) {
+            return Some(candidate.clone());
         }
     }
-    None
+
+    first_working
+}
+
+fn python_runs(python: &str) -> bool {
+    Command::new(python)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok()
+}
+
+fn module_importable(python: &str) -> bool {
+    Command::new(python)
+        .args(["-c", "import youtube_audio_chunker"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }
