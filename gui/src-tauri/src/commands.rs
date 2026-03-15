@@ -103,6 +103,18 @@ pub async fn cancel(
 }
 
 #[tauri::command]
+pub async fn respond_to_reverse_request(
+    sidecar: State<'_, ManagedSidecar>,
+    request_id: Value,
+    result: Value,
+) -> Result<(), SidecarError> {
+    sidecar
+        .lock()
+        .await
+        .respond_to_reverse_request(request_id, result)
+}
+
+#[tauri::command]
 pub async fn get_settings(
     sidecar: State<'_, ManagedSidecar>,
 ) -> Result<Value, SidecarError> {

@@ -37,6 +37,7 @@ pub fn run() {
             commands::transfer_episode,
             commands::get_settings,
             commands::save_settings,
+            commands::respond_to_reverse_request,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

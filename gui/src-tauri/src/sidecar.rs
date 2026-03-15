@@ -50,7 +50,6 @@ impl SidecarManager {
 
         // Background thread: read stdout lines and route them
         let pending_clone = pending.clone();
-        let stdin_clone = stdin.clone();
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
 
@@ -74,7 +73,7 @@ impl SidecarManager {
                 if let Some(id) = parsed.get("id") {
                     if parsed.get("method").is_some() {
                         // Reverse request from sidecar (e.g. confirm_removal)
-                        handle_reverse_request(&app_handle, &stdin_clone, &parsed);
+                        handle_reverse_request(&app_handle, &parsed);
                     } else {
                         // Response to our request
                         let id = id.as_u64().unwrap_or(0);
@@ -153,30 +152,49 @@ impl SidecarManager {
             message: "Sidecar channel closed".to_string(),
         })?
     }
+
+    /// Send a JSON-RPC response to a reverse request from the sidecar.
+    pub fn respond_to_reverse_request(
+        &self,
+        request_id: Value,
+        result: Value,
+    ) -> Result<(), SidecarError> {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "result": result,
+            "id": request_id,
+        });
+        let line = serde_json::to_string(&response).unwrap() + "\n";
+        let mut stdin = self.stdin.lock().unwrap();
+        stdin
+            .write_all(line.as_bytes())
+            .map_err(|e| SidecarError {
+                code: -32000,
+                message: format!("Failed to write to sidecar: {e}"),
+            })?;
+        stdin.flush().map_err(|e| SidecarError {
+            code: -32000,
+            message: format!("Failed to flush sidecar stdin: {e}"),
+        })?;
+        Ok(())
+    }
 }
 
-fn handle_reverse_request(
-    app_handle: &AppHandle,
-    stdin: &Arc<Mutex<ChildStdin>>,
-    request: &Value,
-) {
+fn handle_reverse_request(app_handle: &AppHandle, request: &Value) {
     let method = request["method"].as_str().unwrap_or("");
     let params = request.get("params").cloned().unwrap_or(Value::Null);
     let id = request.get("id").cloned().unwrap_or(Value::Null);
 
-    let event_name = format!("sidecar:reverse:{method}");
-    let _ = app_handle.emit(&event_name, &params);
+    // Include the request ID so the frontend can respond via
+    // the respond_to_reverse_request command.
+    let mut payload = serde_json::Map::new();
+    if let Value::Object(p) = params {
+        payload = p;
+    }
+    payload.insert("_request_id".to_string(), id);
 
-    // Auto-decline for now; frontend will respond via a Tauri command
-    let response = serde_json::json!({
-        "jsonrpc": "2.0",
-        "result": false,
-        "id": id,
-    });
-    let line = serde_json::to_string(&response).unwrap() + "\n";
-    let mut stdin_guard = stdin.lock().unwrap();
-    let _ = stdin_guard.write_all(line.as_bytes());
-    let _ = stdin_guard.flush();
+    let event_name = format!("sidecar:reverse:{method}");
+    let _ = app_handle.emit(&event_name, &Value::Object(payload));
 }
 
 /// Build a PATH that includes common user-managed Python install dirs so that

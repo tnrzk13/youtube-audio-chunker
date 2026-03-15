@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invoke } from '@tauri-apps/api/core';
 	import { listen } from '@tauri-apps/api/event';
 	import { onMount } from 'svelte';
 	import type { GarminEpisode } from '$lib/types';
@@ -6,6 +7,7 @@
 	let open = $state(false);
 	let episodes = $state<GarminEpisode[]>([]);
 	let deficitBytes = $state(0);
+	let requestId = $state<unknown>(null);
 
 	function formatSize(bytes: number): string {
 		const mb = bytes / 1_000_000;
@@ -15,11 +17,12 @@
 	onMount(() => {
 		let unlisten: (() => void) | undefined;
 
-		listen<{ episodes: GarminEpisode[]; deficit_bytes: number }>(
+		listen<{ episodes: GarminEpisode[]; deficit_bytes: number; _request_id: unknown }>(
 			'sidecar:reverse:confirm_removal',
 			(event) => {
 				episodes = event.payload.episodes;
 				deficitBytes = event.payload.deficit_bytes;
+				requestId = event.payload._request_id;
 				open = true;
 			}
 		).then((fn) => { unlisten = fn; });
@@ -29,10 +32,12 @@
 
 	function handleConfirm() {
 		open = false;
+		invoke('respond_to_reverse_request', { requestId, result: true });
 	}
 
 	function handleCancel() {
 		open = false;
+		invoke('respond_to_reverse_request', { requestId, result: false });
 	}
 </script>
 

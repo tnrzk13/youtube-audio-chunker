@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 import threading
 import traceback
@@ -10,7 +11,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from youtube_audio_chunker.constants import ContentType, OUTPUT_DIR
+from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR
 from youtube_audio_chunker.downloader import extract_metadata
 from youtube_audio_chunker.errors import (
     ChunkerError,
@@ -20,6 +21,8 @@ from youtube_audio_chunker.errors import (
     SplitError,
 )
 from youtube_audio_chunker.garmin import (
+    copy_to_garmin,
+    dir_size_bytes,
     find_garmin_mount,
     get_available_space_bytes,
     get_total_space_bytes,
@@ -29,8 +32,15 @@ from youtube_audio_chunker.garmin import (
 from youtube_audio_chunker.library import (
     add_to_queue,
     load_library,
+    mark_synced,
     remove_episode,
     save_library,
+)
+from youtube_audio_chunker.pipeline import (
+    PipelineCallbacks,
+    SyncOptions,
+    process_queue,
+    transfer_unsynced,
 )
 
 ERROR_CODES = {
@@ -80,7 +90,7 @@ def _dispatch(request: dict) -> None:
     if method in _ASYNC_METHODS:
         _cancel_event.clear()
         thread = threading.Thread(
-            target=_run_in_thread, args=(handler, params, request_id)
+            target=_run_handler, args=(handler, params, request_id)
         )
         thread.daemon = True
         thread.start()
@@ -100,10 +110,6 @@ def _run_handler(handler, params: dict, request_id: Any) -> None:
     except Exception:
         if request_id is not None:
             _write_error(request_id, INTERNAL_ERROR, traceback.format_exc())
-
-
-def _run_in_thread(handler, params: dict, request_id: Any) -> None:
-    _run_handler(handler, params, request_id)
 
 
 def _is_cancelled() -> bool:
@@ -183,8 +189,6 @@ def _handle_remove_episode(params: dict) -> dict:
     save_library(library)
 
     if episode_dir.exists():
-        import shutil
-
         shutil.rmtree(episode_dir)
 
     return {"removed": video_id}
@@ -203,166 +207,24 @@ def _handle_remove_from_garmin(params: dict) -> dict:
 
 
 def _handle_process_queue(params: dict) -> dict:
-    from youtube_audio_chunker.downloader import download_audio
-    from youtube_audio_chunker.splitter import split_audio
-    from youtube_audio_chunker.tagger import tag_chunks, tag_single
-    from youtube_audio_chunker.garmin import copy_to_garmin
-    from youtube_audio_chunker.library import move_to_downloaded, mark_synced
-    from youtube_audio_chunker.constants import DEFAULT_CHUNK_DURATION_SECONDS
-
-    chunk_duration_seconds = params.get("chunk_duration_seconds")
-    artist_override = params.get("artist")
-    keep_full = params.get("keep_full", False)
-    no_transfer = params.get("no_transfer", False)
-
-    library = load_library()
-    if not library.queue:
-        return {"processed": 0, "transferred": 0}
-
-    processed_count = 0
-    transferred_count = 0
-    queue_snapshot = list(library.queue)
-    total = len(queue_snapshot)
-
-    for i, entry in enumerate(queue_snapshot):
-        if _is_cancelled():
-            _notify_progress("cancelled", "", "Processing cancelled", 0)
-            break
-
-        content_type = ContentType(entry.content_type)
-
-        # Check if this entry was removed while we were processing others
-        library = load_library()
-        still_queued = any(e.video_id == entry.video_id for e in library.queue)
-        if not still_queued:
-            continue
-
-        # Download
-        _notify_progress("download", entry.video_id, f"Downloading: {entry.title}", 0)
-
-        if _is_cancelled():
-            _notify_progress("cancelled", "", "Processing cancelled", 0)
-            break
-
-        try:
-            results = download_audio(entry.url, OUTPUT_DIR)
-        except DownloadError as exc:
-            _notify_progress("error", entry.video_id, str(exc), 0)
-            continue
-
-        if _is_cancelled():
-            _notify_progress("cancelled", "", "Processing cancelled", 0)
-            break
-
-        if not results:
-            continue
-        dl = results[0]
-        _notify_progress("download", entry.video_id, f"Downloaded: {dl.title}", 100)
-
-        # Split or move
-        episode_dir = OUTPUT_DIR / dl.folder_name
-        episode_dir.mkdir(parents=True, exist_ok=True)
-        artist = artist_override or dl.artist
-        should_chunk = (
-            chunk_duration_seconds is not None or content_type == ContentType.MUSIC
-        )
-
-        if should_chunk:
-            duration = chunk_duration_seconds or DEFAULT_CHUNK_DURATION_SECONDS
-            _notify_progress("split", entry.video_id, f"Splitting: {dl.title}", 0)
-            chunks = split_audio(dl.audio_path, episode_dir, duration)
-            _notify_progress("tag", entry.video_id, f"Tagging {len(chunks)} chunks", 0)
-            tag_chunks(chunks, title=dl.title, total_chunks=len(chunks), artist=artist)
-            if not keep_full:
-                dl.audio_path.unlink(missing_ok=True)
-        else:
-            dest = episode_dir / dl.audio_path.name
-            dl.audio_path.rename(dest)
-            _notify_progress("tag", entry.video_id, f"Tagging: {dl.title}", 0)
-            tag_single(dest, title=dl.title, artist=artist, content_type=content_type)
-
-        # Update library
-        library = load_library()
-        total_size = sum(
-            f.stat().st_size for f in episode_dir.rglob("*") if f.is_file()
-        )
-        chunk_count = len(list(episode_dir.glob("*.mp3")))
-        episode_info = {
-            "folder_name": dl.folder_name,
-            "chunk_count": chunk_count,
-            "total_size_bytes": total_size,
-        }
-        move_to_downloaded(library, entry, episode_info)
-        save_library(library)
-        processed_count += 1
-
-        step_pct = int((i + 1) / total * 100)
-        _notify_progress(
-            "process", entry.video_id, f"Processed {i + 1}/{total}", step_pct
-        )
-
-        if _is_cancelled():
-            _notify_progress("cancelled", "", "Processing cancelled", 0)
-            break
-
-        # Transfer
-        if no_transfer:
-            continue
-
-        garmin_mount = find_garmin_mount()
-        if garmin_mount is None:
-            continue
-
-        needed = sum(
-            f.stat().st_size for f in episode_dir.rglob("*") if f.is_file()
-        )
-        available = get_available_space_bytes(garmin_mount)
-        if needed > available:
-            deficit = needed - available
-            episodes = list_garmin_episodes(garmin_mount)
-            episodes.sort(key=lambda e: e.modified_at)
-            to_remove = _select_for_removal(episodes, deficit)
-            if to_remove:
-                confirm_result = _request_confirm_removal(
-                    [asdict(e) for e in to_remove], deficit
-                )
-                if confirm_result:
-                    for ep in to_remove:
-                        remove_from_garmin(ep.folder_name, garmin_mount)
-                else:
-                    _notify_progress(
-                        "skip", entry.video_id,
-                        f"Skipped transfer - not enough space", 0,
-                    )
-                    continue
-            else:
-                _notify_progress(
-                    "skip", entry.video_id,
-                    f"Skipped transfer - cannot free enough space", 0,
-                )
-                continue
-
-        _notify_progress(
-            "transfer", entry.video_id, f"Transferring: {dl.title}", 0
-        )
-        copy_to_garmin(episode_dir, garmin_mount, content_type)
-        mark_synced(library, dl.video_id)
-        save_library(library)
-        transferred_count += 1
-        _notify_progress(
-            "transfer", entry.video_id, f"Synced: {dl.title}", 100
-        )
-
-    return {"processed": processed_count, "transferred": transferred_count}
+    options = SyncOptions(
+        chunk_duration_seconds=params.get("chunk_duration_seconds"),
+        artist=params.get("artist"),
+        keep_full=params.get("keep_full", False),
+        no_transfer=params.get("no_transfer", False),
+    )
+    callbacks = PipelineCallbacks(
+        on_progress=_notify_progress,
+        on_confirm_removal=_request_confirm_removal,
+        is_cancelled=_is_cancelled,
+    )
+    return process_queue(options, callbacks)
 
 
 # --- Transfer single episode ---
 
 
 def _handle_transfer_episode(params: dict) -> dict:
-    from youtube_audio_chunker.garmin import copy_to_garmin
-    from youtube_audio_chunker.library import mark_synced
-
     video_id = params["video_id"]
     library = load_library()
     ep = next((e for e in library.downloaded if e.video_id == video_id), None)
@@ -378,7 +240,7 @@ def _handle_transfer_episode(params: dict) -> dict:
         raise ChunkerError(f"Files not found: {ep.title}")
 
     content_type = ContentType(ep.content_type)
-    needed = sum(f.stat().st_size for f in episode_dir.rglob("*") if f.is_file())
+    needed = dir_size_bytes(episode_dir)
     available = get_available_space_bytes(garmin_mount)
 
     if needed > available:
@@ -400,67 +262,12 @@ def _handle_transfer_episode(params: dict) -> dict:
 
 
 def _handle_transfer_unsynced(params: dict) -> dict:
-    from youtube_audio_chunker.garmin import copy_to_garmin
-    from youtube_audio_chunker.library import mark_synced
-
-    library = load_library()
-    unsynced = [ep for ep in library.downloaded if ep.synced_at is None]
-    if not unsynced:
-        return {"transferred": 0}
-
-    garmin_mount = find_garmin_mount()
-    if garmin_mount is None:
-        raise GarminError("No Garmin watch detected.")
-
-    transferred_count = 0
-    for ep in unsynced:
-        if _is_cancelled():
-            break
-
-        episode_dir = OUTPUT_DIR / ep.folder_name
-        if not episode_dir.exists():
-            _notify_progress("skip", ep.video_id, f"Files not found: {ep.title}", 0)
-            continue
-
-        content_type = ContentType(ep.content_type)
-        needed = sum(
-            f.stat().st_size for f in episode_dir.rglob("*") if f.is_file()
-        )
-        available = get_available_space_bytes(garmin_mount)
-
-        if needed > available:
-            deficit = needed - available
-            episodes = list_garmin_episodes(garmin_mount)
-            episodes.sort(key=lambda e: e.modified_at)
-            to_remove = _select_for_removal(episodes, deficit)
-            if to_remove:
-                confirm_result = _request_confirm_removal(
-                    [asdict(e) for e in to_remove], deficit
-                )
-                if confirm_result:
-                    for removal_ep in to_remove:
-                        remove_from_garmin(removal_ep.folder_name, garmin_mount)
-                else:
-                    _notify_progress(
-                        "skip", ep.video_id,
-                        f"Skipped transfer - not enough space", 0,
-                    )
-                    continue
-            else:
-                _notify_progress(
-                    "skip", ep.video_id,
-                    f"Skipped transfer - cannot free enough space", 0,
-                )
-                continue
-
-        _notify_progress("transfer", ep.video_id, f"Transferring: {ep.title}", 0)
-        copy_to_garmin(episode_dir, garmin_mount, content_type)
-        mark_synced(library, ep.video_id)
-        transferred_count += 1
-        _notify_progress("transfer", ep.video_id, f"Synced: {ep.title}", 100)
-
-    save_library(library)
-    return {"transferred": transferred_count}
+    callbacks = PipelineCallbacks(
+        on_progress=_notify_progress,
+        on_confirm_removal=_request_confirm_removal,
+        is_cancelled=_is_cancelled,
+    )
+    return transfer_unsynced(callbacks=callbacks)
 
 
 # --- Settings ---
@@ -485,8 +292,6 @@ def _handle_save_settings(params: dict) -> dict:
 
 
 def _settings_path() -> Path:
-    from youtube_audio_chunker.constants import APP_DIR
-
     return APP_DIR / "settings.json"
 
 
@@ -498,19 +303,6 @@ def _find_folder_name(library: Any, video_id: str) -> str:
         if entry.video_id == video_id:
             return ""
     return ""
-
-
-def _select_for_removal(episodes: list, deficit_bytes: int) -> list:
-    to_remove = []
-    freed = 0
-    for ep in episodes:
-        to_remove.append(ep)
-        freed += ep.total_size_bytes
-        if freed >= deficit_bytes:
-            break
-    if freed < deficit_bytes:
-        return []
-    return to_remove
 
 
 # --- JSON-RPC I/O ---

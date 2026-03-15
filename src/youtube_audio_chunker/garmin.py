@@ -61,7 +61,7 @@ def copy_to_garmin(
     target_dir = garmin_mount / GARMIN_DIRS[content_type]
     _ensure_dir(target_dir)
 
-    source_size = _dir_size_bytes(source_dir)
+    source_size = dir_size_bytes(source_dir)
     available = get_available_space_bytes(garmin_mount)
     if source_size > available:
         raise GarminError(
@@ -113,7 +113,7 @@ def list_garmin_episodes(garmin_mount: Path) -> list[GarminEpisode]:
                 episodes.append(
                     GarminEpisode(
                         folder_name=entry.name,
-                        total_size_bytes=_dir_size_bytes(entry),
+                        total_size_bytes=dir_size_bytes(entry),
                         modified_at=entry.stat().st_mtime,
                         location=garmin_dir,
                     )
@@ -259,5 +259,5 @@ def _copy_tree(source_dir: Path, dest_dir: Path) -> None:
         shutil.copytree(source_dir, dest_dir)
 
 
-def _dir_size_bytes(path: Path) -> int:
+def dir_size_bytes(path: Path) -> int:
     return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
