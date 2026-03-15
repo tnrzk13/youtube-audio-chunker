@@ -6,7 +6,7 @@ Built for the Garmin Forerunner 245 Music (and similar watches that play MP3s vi
 
 ## Desktop app
 
-![Screenshot](docs/screenshot.png)
+![Screenshot](docs/screenshot.png?v=2)
 
 A Tauri desktop app provides a three-column dashboard for managing your audio pipeline:
 
