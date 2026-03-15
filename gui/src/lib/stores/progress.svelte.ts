@@ -1,4 +1,4 @@
-import { listen } from '@tauri-apps/api/event';
+import { subscribe } from '$lib/backend';
 import type { ProgressEvent } from '$lib/types';
 
 let current = $state<ProgressEvent | null>(null);
@@ -17,7 +17,7 @@ export function setActive(value: boolean) {
 }
 
 export function initProgressListener() {
-	return listen<ProgressEvent>('sidecar:progress', (event) => {
-		current = event.payload;
+	return subscribe((event: ProgressEvent) => {
+		current = event;
 	});
 }

@@ -21,17 +21,16 @@
 	let transferring = $state(false);
 
 	onMount(() => {
-		let unlisten: (() => void) | undefined;
 		let interval: ReturnType<typeof setInterval> | undefined;
+		const unlisten = initProgressListener();
 
 		(async () => {
 			await Promise.all([refreshLibrary(), refreshGarmin()]);
-			unlisten = await initProgressListener();
 			interval = setInterval(refreshGarmin, 5000);
 		})();
 
 		return () => {
-			unlisten?.();
+			unlisten();
 			if (interval) clearInterval(interval);
 		};
 	});

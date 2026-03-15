@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { invoke } from '@tauri-apps/api/core';
-	import { listen } from '@tauri-apps/api/event';
+	import { call } from '$lib/backend';
 	import { onMount } from 'svelte';
 	import type { GarminEpisode } from '$lib/types';
 
@@ -15,29 +14,33 @@
 	}
 
 	onMount(() => {
-		let unlisten: (() => void) | undefined;
+		// Reverse requests only work in Tauri mode (sidecar stdio bidirectional flow)
+		if (!(window as any).__TAURI_INTERNALS__) return;
 
-		listen<{ episodes: GarminEpisode[]; deficit_bytes: number; _request_id: unknown }>(
-			'sidecar:reverse:confirm_removal',
-			(event) => {
-				episodes = event.payload.episodes;
-				deficitBytes = event.payload.deficit_bytes;
-				requestId = event.payload._request_id;
-				open = true;
-			}
-		).then((fn) => { unlisten = fn; });
+		let unlisten: (() => void) | undefined;
+		import('@tauri-apps/api/event').then(({ listen }) => {
+			listen<{ episodes: GarminEpisode[]; deficit_bytes: number; _request_id: unknown }>(
+				'sidecar:reverse:confirm_removal',
+				(event) => {
+					episodes = event.payload.episodes;
+					deficitBytes = event.payload.deficit_bytes;
+					requestId = event.payload._request_id;
+					open = true;
+				}
+			).then((fn) => { unlisten = fn; });
+		});
 
 		return () => unlisten?.();
 	});
 
 	function handleConfirm() {
 		open = false;
-		invoke('respond_to_reverse_request', { requestId, result: true });
+		call('respond_to_reverse_request', { requestId, result: true });
 	}
 
 	function handleCancel() {
 		open = false;
-		invoke('respond_to_reverse_request', { requestId, result: false });
+		call('respond_to_reverse_request', { requestId, result: false });
 	}
 </script>
 

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { call } from '$lib/backend';
 import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates } from '$lib/types';
 
 let library = $state<Library>({ queue: [], downloaded: [] });
@@ -17,7 +17,7 @@ export async function refreshLibrary() {
 	loading = true;
 	error = null;
 	try {
-		library = await invoke<Library>('get_library');
+		library = await call<Library>('get_library');
 	} catch (e: any) {
 		error = e?.message ?? String(e);
 	} finally {
@@ -26,7 +26,7 @@ export async function refreshLibrary() {
 }
 
 export async function addToQueue(urls: string[], contentType: string, showName?: string): Promise<AddResult> {
-	const result = await invoke<AddResult>('add_to_queue', {
+	const result = await call<AddResult>('add_to_queue', {
 		urls,
 		contentType,
 		showName,
@@ -36,7 +36,7 @@ export async function addToQueue(urls: string[], contentType: string, showName?:
 }
 
 export async function removeEpisode(videoId: string) {
-	await invoke('remove_episode', { videoId });
+	await call('remove_episode', { videoId });
 	await refreshLibrary();
 }
 
@@ -46,37 +46,37 @@ export async function processQueue(options: {
 	keepFull?: boolean;
 	noTransfer?: boolean;
 } = {}): Promise<ProcessResult> {
-	const result = await invoke<ProcessResult>('process_queue', options);
+	const result = await call<ProcessResult>('process_queue', options);
 	await refreshLibrary();
 	return result;
 }
 
 export async function transferEpisode(videoId: string) {
-	await invoke('transfer_episode', { videoId });
+	await call('transfer_episode', { videoId });
 	await refreshLibrary();
 }
 
 export async function cancelProcessing() {
-	await invoke('cancel');
+	await call('cancel');
 }
 
 export async function cancelAndRemove(videoId: string) {
-	await invoke('cancel');
+	await call('cancel');
 	await removeEpisode(videoId);
 }
 
 export async function listShows(): Promise<ShowInfo[]> {
-	const result = await invoke<ListShowsResult>('list_shows');
+	const result = await call<ListShowsResult>('list_shows');
 	return result.shows;
 }
 
 export async function renameShow(oldName: string, newName: string): Promise<number> {
-	const result = await invoke<RenameShowResult>('rename_show', { oldName, newName });
+	const result = await call<RenameShowResult>('rename_show', { oldName, newName });
 	await refreshLibrary();
 	return result.renamed;
 }
 
 export async function editEpisode(videoId: string, updates: EpisodeUpdates): Promise<void> {
-	await invoke('edit_episode', { videoId, updates });
+	await call('edit_episode', { videoId, updates });
 	await refreshLibrary();
 }

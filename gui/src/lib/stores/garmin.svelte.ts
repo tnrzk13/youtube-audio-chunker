@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { call } from '$lib/backend';
 import type { GarminStatus, TransferResult } from '$lib/types';
 
 let status = $state<GarminStatus>({ connected: false, episodes: [], available_bytes: 0, total_bytes: 0 });
@@ -14,7 +14,7 @@ export function getGarminStatus() {
 export async function refreshGarmin() {
 	loading = true;
 	try {
-		status = await invoke<GarminStatus>('get_garmin_status');
+		status = await call<GarminStatus>('get_garmin_status');
 	} catch {
 		status = { connected: false, episodes: [], available_bytes: 0, total_bytes: 0 };
 	} finally {
@@ -23,12 +23,12 @@ export async function refreshGarmin() {
 }
 
 export async function removeFromGarmin(folderName: string) {
-	await invoke('remove_from_garmin', { folderName });
+	await call('remove_from_garmin', { folderName });
 	await refreshGarmin();
 }
 
 export async function transferUnsynced(): Promise<TransferResult> {
-	const result = await invoke<TransferResult>('transfer_unsynced');
+	const result = await call<TransferResult>('transfer_unsynced');
 	await refreshGarmin();
 	return result;
 }
