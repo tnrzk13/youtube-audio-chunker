@@ -26,12 +26,13 @@ from youtube_audio_chunker.library import (
     save_library,
     move_to_downloaded,
     mark_synced,
+    update_episode,
     DownloadedEpisode,
     Library,
     QueueEntry,
 )
 from youtube_audio_chunker.splitter import split_audio
-from youtube_audio_chunker.tagger import tag_chunks, tag_single
+from youtube_audio_chunker.tagger import tag_chunks, tag_single, retag_episode
 
 
 @dataclass
@@ -107,6 +108,33 @@ def transfer_unsynced(
     return {"transferred": transferred}
 
 
+def edit_episode(
+    video_id: str,
+    updates: dict,
+    library_path: Path = LIBRARY_PATH,
+    output_dir: Path = OUTPUT_DIR,
+) -> dict | None:
+    """Update metadata on a downloaded episode and re-tag files on disk."""
+    library = load_library(library_path)
+    ep = update_episode(library, video_id, updates)
+    if ep is None:
+        return None
+
+    episode_dir = output_dir / ep.folder_name
+    if episode_dir.exists():
+        retag_episode(
+            episode_dir,
+            title=ep.title,
+            artist=ep.artist or "",
+            album=ep.show_name or ep.title,
+            content_type=ContentType(ep.content_type),
+            chunk_count=ep.chunk_count,
+        )
+
+    save_library(library, library_path)
+    return asdict(ep)
+
+
 def select_episodes_for_removal(episodes, deficit_bytes):
     to_remove = []
     freed = 0
@@ -121,6 +149,18 @@ def select_episodes_for_removal(episodes, deficit_bytes):
 
 
 # --- Internal helpers ---
+
+
+def _compute_episode_index(
+    library: Library, show_name: str | None, content_type: ContentType,
+) -> int:
+    """Count existing downloaded music episodes with the same show_name."""
+    if content_type != ContentType.MUSIC or show_name is None:
+        return 0
+    return sum(
+        1 for ep in library.downloaded
+        if ep.show_name == show_name and ep.content_type == ContentType.MUSIC.value
+    )
 
 
 def _progress(cb: PipelineCallbacks, *args) -> None:
@@ -196,8 +236,16 @@ def _process_single_entry(
     dl = results[0]
     _progress(cb, "download", entry.video_id, f"Downloaded: {dl.title}", 100)
 
+    entry.show_name = entry.show_name or dl.channel
+    entry.artist = entry.artist or options.artist or dl.artist
+
     content_type = ContentType(entry.content_type)
-    episode_dir = _prepare_episode(dl, content_type, options, cb)
+    show_name = entry.show_name
+    episode_index = _compute_episode_index(library, show_name, content_type)
+    episode_dir = _prepare_episode(
+        dl, content_type, options, cb,
+        show_name=show_name, episode_index=episode_index,
+    )
     _update_library_after_processing(library, entry, dl, episode_dir, options)
     return (dl, episode_dir)
 
@@ -211,10 +259,12 @@ def _should_chunk(content_type: ContentType, options: SyncOptions) -> bool:
 def _prepare_episode(
     dl: DownloadResult, content_type: ContentType, options: SyncOptions,
     cb: PipelineCallbacks,
+    show_name: str | None = None, episode_index: int = 0,
 ) -> Path:
     episode_dir = options.output_dir / dl.folder_name
     episode_dir.mkdir(parents=True, exist_ok=True)
     artist = options.artist or dl.artist
+    album = show_name
 
     if _should_chunk(content_type, options):
         chunk_duration = (
@@ -223,14 +273,21 @@ def _prepare_episode(
         _progress(cb, "split", dl.video_id, f"Splitting: {dl.title}", 0)
         chunks = split_audio(dl.audio_path, episode_dir, chunk_duration)
         _progress(cb, "tag", dl.video_id, f"Tagging {len(chunks)} chunks", 0)
-        tag_chunks(chunks, title=dl.title, total_chunks=len(chunks), artist=artist)
+        track_offset = episode_index * 100
+        tag_chunks(
+            chunks, title=dl.title, total_chunks=len(chunks), artist=artist,
+            album=album, track_offset=track_offset,
+        )
         if not options.keep_full:
             dl.audio_path.unlink(missing_ok=True)
     else:
         dest = episode_dir / dl.audio_path.name
         dl.audio_path.rename(dest)
         _progress(cb, "tag", dl.video_id, f"Tagging: {dl.title}", 0)
-        tag_single(dest, title=dl.title, artist=artist, content_type=content_type)
+        tag_single(
+            dest, title=dl.title, artist=artist,
+            content_type=content_type, album=album,
+        )
 
     return episode_dir
 

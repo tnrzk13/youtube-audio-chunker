@@ -5,6 +5,7 @@ import pytest
 
 from youtube_audio_chunker.constants import sanitize_filename
 from youtube_audio_chunker.downloader import (
+    _build_results,
     download_audio,
     extract_metadata,
     DownloadResult,
@@ -130,3 +131,50 @@ class TestDownloadAudio:
         opts = mock_ydl_cls.call_args[0][0]
         assert opts["postprocessors"][0]["preferredcodec"] == "mp3"
         assert opts["postprocessors"][0]["preferredquality"] == "128"
+
+
+class TestChannelExtraction:
+    def test_download_result_has_channel_field(self):
+        result = DownloadResult(
+            video_id="v1",
+            title="T",
+            artist="A",
+            audio_path=Path("/tmp/t.mp3"),
+            folder_name="T",
+            channel="My Channel",
+        )
+        assert result.channel == "My Channel"
+
+    def test_download_result_channel_defaults_to_unknown(self):
+        result = DownloadResult(
+            video_id="v1",
+            title="T",
+            artist="A",
+            audio_path=Path("/tmp/t.mp3"),
+            folder_name="T",
+        )
+        assert result.channel == "Unknown"
+
+    def test_build_results_extracts_channel_from_info(self, output_dir):
+        (output_dir / "Test.mp3").write_bytes(b"\x00")
+        info = {"id": "v1", "title": "Test", "uploader": "Uploader", "channel": "The Channel"}
+
+        results = _build_results(info, output_dir)
+
+        assert results[0].channel == "The Channel"
+
+    def test_build_results_falls_back_to_uploader(self, output_dir):
+        (output_dir / "Test.mp3").write_bytes(b"\x00")
+        info = {"id": "v1", "title": "Test", "uploader": "The Uploader"}
+
+        results = _build_results(info, output_dir)
+
+        assert results[0].channel == "The Uploader"
+
+    def test_build_results_falls_back_to_unknown(self, output_dir):
+        (output_dir / "Test.mp3").write_bytes(b"\x00")
+        info = {"id": "v1", "title": "Test"}
+
+        results = _build_results(info, output_dir)
+
+        assert results[0].channel == "Unknown"

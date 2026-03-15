@@ -4,7 +4,8 @@ from unittest.mock import patch, MagicMock, call
 
 import pytest
 
-from youtube_audio_chunker.pipeline import process_queue, SyncOptions
+from youtube_audio_chunker.constants import ContentType
+from youtube_audio_chunker.pipeline import process_queue, edit_episode, SyncOptions
 from youtube_audio_chunker.library import Library, QueueEntry, DownloadedEpisode
 from youtube_audio_chunker.downloader import DownloadResult
 from youtube_audio_chunker.garmin import GarminEpisode
@@ -249,3 +250,197 @@ class TestProcessQueue:
             process_queue(opts)
 
         mock_copy.assert_not_called()
+
+
+class TestShowNameFlow:
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.tag_chunks")
+    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.download_audio")
+    @patch(f"{MODULE}.load_library")
+    def test_show_name_flows_from_download_to_library(
+        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
+        tmp_path,
+    ):
+        entry = QueueEntry(
+            video_id="abc123",
+            url="https://youtube.com/watch?v=abc123",
+            title="Test Video",
+            added_at="2026-03-01T12:00:00+00:00",
+        )
+        library = Library(queue=[entry], downloaded=[])
+        mock_load.return_value = library
+
+        audio = tmp_path / "Test-Video.mp3"
+        audio.write_bytes(b"\x00" * 1000)
+        dl = DownloadResult(
+            video_id="abc123", title="Test Video", artist="Channel",
+            audio_path=audio, folder_name="Test-Video", channel="The Channel",
+        )
+        mock_download.return_value = [dl]
+
+        output = tmp_path / "output" / "Test-Video"
+        output.mkdir(parents=True)
+        chunks = [output / f"{i:02d}_Test-Video.mp3" for i in range(1, 4)]
+        for c in chunks:
+            c.write_bytes(b"\x00" * 500)
+        mock_split.return_value = chunks
+
+        opts = SyncOptions(
+            library_path=tmp_path / "library.json",
+            output_dir=tmp_path / "output",
+            no_transfer=True,
+        )
+        process_queue(opts)
+
+        saved_lib = mock_save.call_args[0][0]
+        ep = saved_lib.downloaded[0]
+        assert ep.show_name == "The Channel"
+        assert ep.artist == "Channel"
+
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.tag_chunks")
+    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.download_audio")
+    @patch(f"{MODULE}.load_library")
+    def test_queue_entry_show_name_takes_precedence(
+        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
+        tmp_path,
+    ):
+        entry = QueueEntry(
+            video_id="abc123",
+            url="https://youtube.com/watch?v=abc123",
+            title="Test Video",
+            added_at="2026-03-01T12:00:00+00:00",
+            show_name="My Custom Show",
+        )
+        library = Library(queue=[entry], downloaded=[])
+        mock_load.return_value = library
+
+        audio = tmp_path / "Test-Video.mp3"
+        audio.write_bytes(b"\x00" * 1000)
+        dl = DownloadResult(
+            video_id="abc123", title="Test Video", artist="Channel",
+            audio_path=audio, folder_name="Test-Video", channel="The Channel",
+        )
+        mock_download.return_value = [dl]
+
+        output = tmp_path / "output" / "Test-Video"
+        output.mkdir(parents=True)
+        chunks = [output / f"{i:02d}_Test-Video.mp3" for i in range(1, 4)]
+        for c in chunks:
+            c.write_bytes(b"\x00" * 500)
+        mock_split.return_value = chunks
+
+        opts = SyncOptions(
+            library_path=tmp_path / "library.json",
+            output_dir=tmp_path / "output",
+            no_transfer=True,
+        )
+        process_queue(opts)
+
+        saved_lib = mock_save.call_args[0][0]
+        ep = saved_lib.downloaded[0]
+        assert ep.show_name == "My Custom Show"
+
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.tag_chunks")
+    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.download_audio")
+    @patch(f"{MODULE}.load_library")
+    def test_tag_chunks_receives_album_and_track_offset(
+        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
+        tmp_path,
+    ):
+        """Music episodes with a show_name should pass album and track_offset to tagger."""
+        # Existing downloaded music episode with same show
+        existing_ep = DownloadedEpisode(
+            video_id="prev", url="u", title="Previous",
+            folder_name="Previous", chunk_count=5,
+            total_size_bytes=5000, downloaded_at="t", synced_at=None,
+            content_type="music", show_name="The Channel",
+        )
+        entry = QueueEntry(
+            video_id="abc123",
+            url="https://youtube.com/watch?v=abc123",
+            title="Test Video",
+            added_at="2026-03-01T12:00:00+00:00",
+        )
+        library = Library(queue=[entry], downloaded=[existing_ep])
+        mock_load.return_value = library
+
+        audio = tmp_path / "Test-Video.mp3"
+        audio.write_bytes(b"\x00" * 1000)
+        dl = DownloadResult(
+            video_id="abc123", title="Test Video", artist="Channel",
+            audio_path=audio, folder_name="Test-Video", channel="The Channel",
+        )
+        mock_download.return_value = [dl]
+
+        output = tmp_path / "output" / "Test-Video"
+        output.mkdir(parents=True)
+        chunks = [output / f"{i:02d}_Test-Video.mp3" for i in range(1, 4)]
+        for c in chunks:
+            c.write_bytes(b"\x00" * 500)
+        mock_split.return_value = chunks
+
+        opts = SyncOptions(
+            library_path=tmp_path / "library.json",
+            output_dir=tmp_path / "output",
+            no_transfer=True,
+        )
+        process_queue(opts)
+
+        tag_call = mock_tag.call_args
+        assert tag_call.kwargs.get("album") == "The Channel"
+        assert tag_call.kwargs.get("track_offset") == 100
+
+
+class TestEditEpisode:
+    @patch(f"{MODULE}.retag_episode")
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.load_library")
+    def test_updates_library_and_retags(
+        self, mock_load, mock_save, mock_retag, tmp_path,
+    ):
+        ep = DownloadedEpisode(
+            video_id="abc123", url="u", title="Old Title",
+            folder_name="Old-Title", chunk_count=3,
+            total_size_bytes=5000, downloaded_at="t", synced_at=None,
+            content_type="music", show_name="Old Show",
+        )
+        library = Library(queue=[], downloaded=[ep])
+        mock_load.return_value = library
+
+        episode_dir = tmp_path / "output" / "Old-Title"
+        episode_dir.mkdir(parents=True)
+        for i in range(1, 4):
+            (episode_dir / f"{i:02d}_Old-Title.mp3").write_bytes(b"\x00" * 100)
+
+        result = edit_episode(
+            "abc123",
+            {"show_name": "New Show", "title": "New Title"},
+            library_path=tmp_path / "library.json",
+            output_dir=tmp_path / "output",
+        )
+
+        assert result["show_name"] == "New Show"
+        assert result["title"] == "New Title"
+        mock_save.assert_called_once()
+        mock_retag.assert_called_once()
+
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.load_library")
+    def test_returns_none_for_unknown_video(self, mock_load, mock_save, tmp_path):
+        library = Library(queue=[], downloaded=[])
+        mock_load.return_value = library
+
+        result = edit_episode(
+            "unknown",
+            {"show_name": "X"},
+            library_path=tmp_path / "library.json",
+            output_dir=tmp_path / "output",
+        )
+
+        assert result is None
+        mock_save.assert_not_called()

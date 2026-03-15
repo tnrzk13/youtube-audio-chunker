@@ -22,6 +22,7 @@ class DownloadResult:
     artist: str
     audio_path: Path
     folder_name: str
+    channel: str = "Unknown"
 
 
 def extract_metadata(url: str) -> list[dict]:
@@ -77,6 +78,7 @@ def _build_results(info: dict, output_dir: Path) -> list[DownloadResult]:
         title = entry.get("title", "Unknown")
         folder_name = sanitize_filename(title)
         audio_path = _find_audio_file(output_dir, title)
+        channel = entry.get("channel") or entry.get("uploader") or "Unknown"
         results.append(
             DownloadResult(
                 video_id=entry.get("id", ""),
@@ -84,6 +86,7 @@ def _build_results(info: dict, output_dir: Path) -> list[DownloadResult]:
                 artist=entry.get("uploader", "Unknown"),
                 audio_path=audio_path,
                 folder_name=folder_name,
+                channel=channel,
             )
         )
     return results

@@ -26,8 +26,10 @@ from youtube_audio_chunker.library import (
     save_library,
     add_to_queue,
     remove_episode,
+    rename_show,
+    list_shows,
 )
-from youtube_audio_chunker.pipeline import process_queue, transfer_unsynced, SyncOptions
+from youtube_audio_chunker.pipeline import process_queue, transfer_unsynced, edit_episode, SyncOptions
 
 
 def main() -> None:
@@ -46,6 +48,8 @@ def main() -> None:
             "transfer": _handle_transfer,
             "list": _handle_list,
             "remove": _handle_remove,
+            "show": _handle_show,
+            "edit": _handle_edit,
         }
         handlers[args.command](args)
     except ChunkerError as exc:
@@ -85,6 +89,8 @@ def build_parser() -> argparse.ArgumentParser:
     _add_transfer_parser(subparsers)
     _add_list_parser(subparsers)
     _add_remove_parser(subparsers)
+    _add_show_parser(subparsers)
+    _add_edit_parser(subparsers)
 
     return parser
 
@@ -112,6 +118,10 @@ def _add_add_parser(subparsers) -> None:
         default=ContentType.MUSIC.value,
         help="Content type: music (chunked, MUSIC/), podcast (single, Podcasts/), "
         "audiobook (single, Audiobooks/). Default: music",
+    )
+    p.add_argument(
+        "--show", metavar="NAME", default=None,
+        help="show/series name for grouping (default: auto-detect from channel)",
     )
 
 
@@ -171,6 +181,10 @@ def _add_download_parser(subparsers) -> None:
         "audiobook (single, Audiobooks/). Default: music",
     )
     p.add_argument(
+        "--show", metavar="NAME", default=None,
+        help="show/series name for grouping (default: auto-detect from channel)",
+    )
+    p.add_argument(
         "--chunk-duration", type=int, default=None, metavar="SECONDS",
         help=f"chunk duration in seconds "
         f"(default: {DEFAULT_CHUNK_DURATION_SECONDS} for music, disabled for podcast/audiobook)",
@@ -219,6 +233,52 @@ def _add_list_parser(subparsers) -> None:
     p.add_argument("--watch", action="store_true", help="show only episodes on the Garmin watch")
 
 
+def _add_show_parser(subparsers) -> None:
+    p = subparsers.add_parser(
+        "show",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Manage shows/series",
+        description="List or rename shows (series groupings).",
+        epilog=(
+            "examples:\n"
+            "  youtube-audio-chunker show list\n"
+            "  youtube-audio-chunker show rename 'Old Name' 'New Name'"
+        ),
+    )
+    show_sub = p.add_subparsers(dest="show_action")
+
+    show_sub.add_parser("list", help="list shows with episode counts")
+
+    rename_p = show_sub.add_parser("rename", help="rename a show")
+    rename_p.add_argument("old_name", help="current show name")
+    rename_p.add_argument("new_name", help="new show name")
+
+
+def _add_edit_parser(subparsers) -> None:
+    p = subparsers.add_parser(
+        "edit",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="Edit episode metadata",
+        description="Update metadata on a downloaded episode and re-tag files on disk.",
+        epilog=(
+            "examples:\n"
+            '  youtube-audio-chunker edit abc123 --show "New Show"\n'
+            '  youtube-audio-chunker edit abc123 --artist "New Artist" --title "New Title"\n'
+            "  youtube-audio-chunker edit abc123 --type podcast"
+        ),
+    )
+    p.add_argument("video_id", help="video ID of the episode to edit")
+    p.add_argument("--show", metavar="NAME", default=None, help="set show/series name")
+    p.add_argument("--artist", metavar="NAME", default=None, help="set artist name")
+    p.add_argument("--title", metavar="TITLE", default=None, help="set episode title")
+    p.add_argument(
+        "--type",
+        choices=[t.value for t in ContentType],
+        default=None,
+        help="set content type",
+    )
+
+
 def _add_remove_parser(subparsers) -> None:
     p = subparsers.add_parser(
         "remove",
@@ -241,6 +301,7 @@ def _add_remove_parser(subparsers) -> None:
 def _handle_add(args) -> None:
     library = load_library()
     content_type = args.type
+    show_name = getattr(args, "show", None)
     for url in args.urls:
         entries = extract_metadata(url)
         for entry in entries:
@@ -250,6 +311,7 @@ def _handle_add(args) -> None:
                 title=entry["title"],
                 video_id=entry["id"],
                 content_type=content_type,
+                show_name=show_name,
             )
             if added:
                 print(f"Added ({content_type}): {entry['title']}")
@@ -294,7 +356,10 @@ def _print_queued(library) -> None:
     if not library.queue:
         print("  (empty)")
     for entry in library.queue:
-        print(f"  {entry.title}")
+        if entry.show_name:
+            print(f"  {entry.title} ({entry.show_name})")
+        else:
+            print(f"  {entry.title}")
     print()
 
 
@@ -306,10 +371,15 @@ def _print_local(library) -> None:
         size_mb = ep.total_size_bytes / 1_000_000
         synced = "synced" if ep.synced_at else "not synced"
         content_type = getattr(ep, "content_type", "music")
-        if ep.chunk_count == 1:
-            print(f"  {ep.title} ({content_type}, {size_mb:.1f} MB, {synced})")
-        else:
-            print(f"  {ep.title} ({content_type}, {ep.chunk_count} chunks, {size_mb:.1f} MB, {synced})")
+        parts = [content_type]
+        if ep.show_name:
+            parts.insert(0, ep.show_name)
+        if ep.chunk_count > 1:
+            parts.append(f"{ep.chunk_count} chunks")
+        parts.append(f"{size_mb:.1f} MB")
+        parts.append(synced)
+        detail = ", ".join(parts)
+        print(f"  {ep.title} ({detail})")
     print()
 
 
@@ -373,3 +443,53 @@ def _find_episode_by_title(library, title: str) -> tuple[str | None, str | None]
         if entry.title == title:
             return entry.video_id, None
     return None, None
+
+
+def _handle_show(args) -> None:
+    if not hasattr(args, "show_action") or args.show_action is None:
+        print("Usage: youtube-audio-chunker show {list,rename}", file=sys.stderr)
+        sys.exit(1)
+
+    library = load_library()
+    if args.show_action == "list":
+        _show_list(library)
+    elif args.show_action == "rename":
+        _show_rename(library, args.old_name, args.new_name)
+
+
+def _show_list(library) -> None:
+    shows = list_shows(library)
+    if not shows:
+        print("No shows found.")
+        return
+    for show in shows:
+        types = ", ".join(show["content_types"])
+        print(f"  {show['show_name']} ({show['episode_count']} episodes, {types})")
+
+
+def _show_rename(library, old_name: str, new_name: str) -> None:
+    count = rename_show(library, old_name, new_name)
+    save_library(library)
+    print(f"Renamed '{old_name}' to '{new_name}' ({count} episodes updated)")
+
+
+def _handle_edit(args) -> None:
+    updates = _collect_edit_updates(args)
+    result = edit_episode(args.video_id, updates)
+    if result is None:
+        print(f"Episode '{args.video_id}' not found.", file=sys.stderr)
+        sys.exit(1)
+    print(f"Updated: {result['title']}")
+
+
+def _collect_edit_updates(args) -> dict:
+    updates = {}
+    if args.show is not None:
+        updates["show_name"] = args.show
+    if args.artist is not None:
+        updates["artist"] = args.artist
+    if args.title is not None:
+        updates["title"] = args.title
+    if args.type is not None:
+        updates["content_type"] = args.type
+    return updates

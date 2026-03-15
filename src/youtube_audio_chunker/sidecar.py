@@ -31,14 +31,17 @@ from youtube_audio_chunker.garmin import (
 )
 from youtube_audio_chunker.library import (
     add_to_queue,
+    list_shows,
     load_library,
     mark_synced,
     remove_episode,
+    rename_show,
     save_library,
 )
 from youtube_audio_chunker.pipeline import (
     PipelineCallbacks,
     SyncOptions,
+    edit_episode,
     process_queue,
     transfer_unsynced,
 )
@@ -151,12 +154,36 @@ def _handle_get_garmin_status(params: dict) -> dict:
     }
 
 
+def _handle_list_shows(params: dict) -> dict:
+    library = load_library()
+    return {"shows": list_shows(library)}
+
+
+def _handle_rename_show(params: dict) -> dict:
+    old_name = params["old_name"]
+    new_name = params["new_name"]
+    library = load_library()
+    count = rename_show(library, old_name, new_name)
+    save_library(library)
+    return {"renamed": count}
+
+
+def _handle_edit_episode(params: dict) -> dict:
+    video_id = params["video_id"]
+    updates = params.get("updates", {})
+    result = edit_episode(video_id, updates)
+    if result is None:
+        raise ChunkerError(f"Episode not found: {video_id}")
+    return result
+
+
 # --- Mutation methods ---
 
 
 def _handle_add_to_queue(params: dict) -> dict:
     urls = params.get("urls", [])
     content_type = params.get("content_type", ContentType.MUSIC.value)
+    show_name = params.get("show_name")
     library = load_library()
     added = []
     skipped = []
@@ -170,6 +197,7 @@ def _handle_add_to_queue(params: dict) -> dict:
                 title=entry["title"],
                 video_id=entry["id"],
                 content_type=content_type,
+                show_name=show_name,
             )
             if was_added:
                 added.append(entry["title"])
@@ -387,6 +415,9 @@ def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
 _METHODS = {
     "get_library": _handle_get_library,
     "get_garmin_status": _handle_get_garmin_status,
+    "list_shows": _handle_list_shows,
+    "rename_show": _handle_rename_show,
+    "edit_episode": _handle_edit_episode,
     "add_to_queue": _handle_add_to_queue,
     "remove_episode": _handle_remove_episode,
     "remove_from_garmin": _handle_remove_from_garmin,

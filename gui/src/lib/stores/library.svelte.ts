@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { Library, AddResult, ProcessResult } from '$lib/types';
+import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates } from '$lib/types';
 
 let library = $state<Library>({ queue: [], downloaded: [] });
 let loading = $state(false);
@@ -25,10 +25,11 @@ export async function refreshLibrary() {
 	}
 }
 
-export async function addToQueue(urls: string[], contentType: string): Promise<AddResult> {
+export async function addToQueue(urls: string[], contentType: string, showName?: string): Promise<AddResult> {
 	const result = await invoke<AddResult>('add_to_queue', {
 		urls,
 		contentType,
+		showName,
 	});
 	await refreshLibrary();
 	return result;
@@ -62,4 +63,20 @@ export async function cancelProcessing() {
 export async function cancelAndRemove(videoId: string) {
 	await invoke('cancel');
 	await removeEpisode(videoId);
+}
+
+export async function listShows(): Promise<ShowInfo[]> {
+	const result = await invoke<ListShowsResult>('list_shows');
+	return result.shows;
+}
+
+export async function renameShow(oldName: string, newName: string): Promise<number> {
+	const result = await invoke<RenameShowResult>('rename_show', { oldName, newName });
+	await refreshLibrary();
+	return result.renamed;
+}
+
+export async function editEpisode(videoId: string, updates: EpisodeUpdates): Promise<void> {
+	await invoke('edit_episode', { videoId, updates });
+	await refreshLibrary();
 }

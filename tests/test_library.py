@@ -13,6 +13,9 @@ from youtube_audio_chunker.library import (
     move_to_downloaded,
     mark_synced,
     remove_episode,
+    rename_show,
+    list_shows,
+    update_episode,
 )
 
 
@@ -187,3 +190,219 @@ class TestRemoveEpisode:
         lib = remove_episode(empty_library, "unknown")
         assert len(lib.queue) == 0
         assert len(lib.downloaded) == 0
+
+
+class TestBackwardCompatibility:
+    def test_load_library_without_show_name_or_artist(self, library_path):
+        """Old library.json files without show_name/artist fields still load."""
+        data = {
+            "queue": [
+                {
+                    "video_id": "old1",
+                    "url": "https://www.youtube.com/watch?v=old1",
+                    "title": "Old Queue Entry",
+                    "added_at": "2026-01-01T00:00:00+00:00",
+                    "content_type": "music",
+                }
+            ],
+            "downloaded": [
+                {
+                    "video_id": "old2",
+                    "url": "https://www.youtube.com/watch?v=old2",
+                    "title": "Old Downloaded",
+                    "folder_name": "Old-Downloaded",
+                    "chunk_count": 3,
+                    "total_size_bytes": 5000,
+                    "downloaded_at": "2026-01-01T00:05:00+00:00",
+                    "synced_at": None,
+                    "content_type": "music",
+                }
+            ],
+        }
+        library_path.write_text(json.dumps(data))
+
+        lib = load_library(library_path)
+        assert lib.queue[0].show_name is None
+        assert lib.queue[0].artist is None
+        assert lib.downloaded[0].show_name is None
+        assert lib.downloaded[0].artist is None
+
+
+class TestRenameShow:
+    def test_renames_matching_entries_in_queue_and_downloaded(self):
+        q1 = QueueEntry(
+            video_id="q1", url="u1", title="Ep 1", added_at="t",
+            show_name="Old Show",
+        )
+        q2 = QueueEntry(
+            video_id="q2", url="u2", title="Ep 2", added_at="t",
+            show_name="Other Show",
+        )
+        d1 = DownloadedEpisode(
+            video_id="d1", url="u3", title="Ep 3", folder_name="Ep-3",
+            chunk_count=2, total_size_bytes=1000,
+            downloaded_at="t", synced_at=None, show_name="Old Show",
+        )
+        lib = Library(queue=[q1, q2], downloaded=[d1])
+
+        count = rename_show(lib, "Old Show", "New Show")
+
+        assert count == 2
+        assert lib.queue[0].show_name == "New Show"
+        assert lib.queue[1].show_name == "Other Show"
+        assert lib.downloaded[0].show_name == "New Show"
+
+    def test_returns_zero_when_no_matches(self, empty_library):
+        count = rename_show(empty_library, "Nonexistent", "New Name")
+        assert count == 0
+
+
+class TestListShows:
+    def test_returns_grouped_shows(self):
+        d1 = DownloadedEpisode(
+            video_id="a", url="u", title="Ep 1", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+            content_type="podcast", show_name="My Podcast",
+        )
+        d2 = DownloadedEpisode(
+            video_id="b", url="u", title="Ep 2", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+            content_type="podcast", show_name="My Podcast",
+        )
+        d3 = DownloadedEpisode(
+            video_id="c", url="u", title="Song", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+            content_type="music", show_name="My Album",
+        )
+        q1 = QueueEntry(
+            video_id="d", url="u", title="Ep 3", added_at="t",
+            content_type="podcast", show_name="My Podcast",
+        )
+        lib = Library(queue=[q1], downloaded=[d1, d2, d3])
+
+        shows = list_shows(lib)
+
+        shows_by_name = {s["show_name"]: s for s in shows}
+        assert len(shows_by_name) == 2
+        assert shows_by_name["My Podcast"]["episode_count"] == 3
+        assert "podcast" in shows_by_name["My Podcast"]["content_types"]
+        assert shows_by_name["My Album"]["episode_count"] == 1
+        assert "music" in shows_by_name["My Album"]["content_types"]
+
+    def test_excludes_entries_without_show_name(self):
+        d1 = DownloadedEpisode(
+            video_id="a", url="u", title="Ungrouped", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+        )
+        lib = Library(queue=[], downloaded=[d1])
+
+        shows = list_shows(lib)
+        assert shows == []
+
+    def test_aggregates_mixed_content_types(self):
+        d1 = DownloadedEpisode(
+            video_id="a", url="u", title="Ep 1", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+            content_type="podcast", show_name="Mixed Show",
+        )
+        d2 = DownloadedEpisode(
+            video_id="b", url="u", title="Ep 2", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+            content_type="music", show_name="Mixed Show",
+        )
+        lib = Library(queue=[], downloaded=[d1, d2])
+
+        shows = list_shows(lib)
+        assert len(shows) == 1
+        assert sorted(shows[0]["content_types"]) == ["music", "podcast"]
+
+
+class TestUpdateEpisode:
+    def test_updates_specified_fields(self):
+        episode = DownloadedEpisode(
+            video_id="abc", url="u", title="Original Title", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+        )
+        lib = Library(queue=[], downloaded=[episode])
+
+        result = update_episode(lib, "abc", {
+            "show_name": "My Show",
+            "artist": "Some Artist",
+            "title": "New Title",
+        })
+
+        assert result is not None
+        assert result.show_name == "My Show"
+        assert result.artist == "Some Artist"
+        assert result.title == "New Title"
+        # Unchanged fields preserved
+        assert result.video_id == "abc"
+        assert result.folder_name == "f"
+
+    def test_leaves_unspecified_fields_unchanged(self):
+        episode = DownloadedEpisode(
+            video_id="abc", url="u", title="Original", folder_name="f",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+            content_type="podcast", show_name="Old Show",
+        )
+        lib = Library(queue=[], downloaded=[episode])
+
+        result = update_episode(lib, "abc", {"artist": "New Artist"})
+
+        assert result is not None
+        assert result.artist == "New Artist"
+        assert result.show_name == "Old Show"
+        assert result.title == "Original"
+        assert result.content_type == "podcast"
+
+    def test_returns_none_for_unknown_video_id(self, empty_library):
+        result = update_episode(empty_library, "nonexistent", {"title": "X"})
+        assert result is None
+
+
+class TestAddToQueueWithShowName:
+    def test_passes_show_name_through(self, empty_library):
+        add_to_queue(
+            empty_library,
+            url="https://www.youtube.com/watch?v=xyz",
+            title="Episode 1",
+            video_id="xyz",
+            show_name="My Podcast",
+        )
+        assert empty_library.queue[0].show_name == "My Podcast"
+
+    def test_show_name_defaults_to_none(self, empty_library):
+        add_to_queue(
+            empty_library,
+            url="https://www.youtube.com/watch?v=xyz",
+            title="Episode 1",
+            video_id="xyz",
+        )
+        assert empty_library.queue[0].show_name is None
+
+
+class TestMoveToDownloadedCarriesShowFields:
+    def test_carries_show_name_and_artist(self):
+        entry = QueueEntry(
+            video_id="q1", url="u1", title="Ep 1", added_at="t",
+            show_name="My Show", artist="The Artist",
+        )
+        lib = Library(queue=[entry], downloaded=[])
+        episode_info = {
+            "folder_name": "Ep-1",
+            "chunk_count": 3,
+            "total_size_bytes": 5000,
+        }
+
+        lib = move_to_downloaded(lib, entry, episode_info)
+
+        assert lib.downloaded[0].show_name == "My Show"
+        assert lib.downloaded[0].artist == "The Artist"

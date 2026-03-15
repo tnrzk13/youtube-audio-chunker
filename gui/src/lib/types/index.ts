@@ -4,6 +4,8 @@ export interface QueueEntry {
 	title: string;
 	added_at: string;
 	content_type: string;
+	show_name: string | null;
+	artist: string | null;
 }
 
 export interface DownloadedEpisode {
@@ -16,6 +18,8 @@ export interface DownloadedEpisode {
 	downloaded_at: string;
 	synced_at: string | null;
 	content_type: string;
+	show_name: string | null;
+	artist: string | null;
 }
 
 export interface Library {
@@ -56,6 +60,27 @@ export interface ProcessResult {
 
 export interface TransferResult {
 	transferred: number;
+}
+
+export interface ShowInfo {
+	show_name: string;
+	episode_count: number;
+	content_types: string[];
+}
+
+export interface EpisodeUpdates {
+	show_name?: string;
+	artist?: string;
+	title?: string;
+	content_type?: string;
+}
+
+export interface RenameShowResult {
+	renamed: number;
+}
+
+export interface ListShowsResult {
+	shows: ShowInfo[];
 }
 
 export type ContentType = 'music' | 'podcast' | 'audiobook';

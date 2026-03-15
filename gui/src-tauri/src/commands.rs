@@ -28,10 +28,12 @@ pub async fn add_to_queue(
     sidecar: State<'_, ManagedSidecar>,
     urls: Vec<String>,
     content_type: String,
+    show_name: Option<String>,
 ) -> Result<Value, SidecarError> {
     let params = serde_json::json!({
         "urls": urls,
         "content_type": content_type,
+        "show_name": show_name,
     });
     sidecar.lock().await.call("add_to_queue", params).await
 }
@@ -128,4 +130,37 @@ pub async fn save_settings(
 ) -> Result<Value, SidecarError> {
     let params = serde_json::json!({ "settings": settings });
     sidecar.lock().await.call("save_settings", params).await
+}
+
+#[tauri::command]
+pub async fn list_shows(
+    sidecar: State<'_, ManagedSidecar>,
+) -> Result<Value, SidecarError> {
+    sidecar.lock().await.call("list_shows", Value::Null).await
+}
+
+#[tauri::command]
+pub async fn rename_show(
+    sidecar: State<'_, ManagedSidecar>,
+    old_name: String,
+    new_name: String,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({
+        "old_name": old_name,
+        "new_name": new_name,
+    });
+    sidecar.lock().await.call("rename_show", params).await
+}
+
+#[tauri::command]
+pub async fn edit_episode(
+    sidecar: State<'_, ManagedSidecar>,
+    video_id: String,
+    updates: Value,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({
+        "video_id": video_id,
+        "updates": updates,
+    });
+    sidecar.lock().await.call("edit_episode", params).await
 }

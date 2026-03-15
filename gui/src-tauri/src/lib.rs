@@ -38,6 +38,9 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::respond_to_reverse_request,
+            commands::list_shows,
+            commands::rename_show,
+            commands::edit_episode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
