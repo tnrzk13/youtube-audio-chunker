@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "npm --prefix gui run tauri dev",
+    "dev:watch": "watchexec -r -e py -w src -- npm run dev",
     "build": "npm --prefix gui run tauri build",
     "gui:install": "npm --prefix gui install"
   }
