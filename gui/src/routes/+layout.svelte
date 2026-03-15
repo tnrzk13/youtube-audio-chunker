@@ -14,8 +14,12 @@
 </div>
 
 <style>
-	:global(body) {
+	:global(html, body) {
 		margin: 0;
+		height: 100%;
+		overflow: hidden;
+	}
+	:global(body) {
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 		font-size: 14px;
 		color: var(--color-text);
