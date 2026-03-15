@@ -1,30 +1,29 @@
 <script lang="ts">
 	import type { GarminStatus } from '$lib/types';
+	import { computeStorageBreakdown, formatSize } from '$lib/storage';
 
 	let { status }: { status: GarminStatus } = $props();
 
-	let usedBytes = $derived(status.episodes.reduce((sum, ep) => sum + ep.total_size_bytes, 0));
-	let totalBytes = $derived(usedBytes + status.available_bytes);
-	let usedPercent = $derived(totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0);
-	let freePercent = $derived(100 - usedPercent);
+	let breakdown = $derived(computeStorageBreakdown(status));
 
 	let statusColor = $derived(
-		freePercent < 10 ? 'var(--color-critical)' : freePercent < 20 ? 'var(--color-warning)' : 'var(--color-success)'
+		breakdown.freePercent < 10 ? 'var(--color-critical)' : breakdown.freePercent < 20 ? 'var(--color-warning)' : 'var(--color-success)'
 	);
-
-	function formatSize(bytes: number): string {
-		const mb = bytes / 1_000_000;
-		if (mb >= 1000) return `${(mb / 1000).toFixed(1)} GB`;
-		return `${mb.toFixed(0)} MB`;
-	}
 </script>
 
 {#if status.connected}
 	<div class="storage">
 		<div class="bar">
-			<div class="bar-fill" style="width: {usedPercent}%"></div>
+			<div class="bar-episodes" style="width: {breakdown.episodePercent}%"></div>
+			<div class="bar-other" style="width: {breakdown.otherPercent}%"></div>
 		</div>
-		<div class="label" style="color: {statusColor}">{formatSize(status.available_bytes)} free of {formatSize(totalBytes)}</div>
+		<div class="label" style="color: {statusColor}">{formatSize(breakdown.freeBytes)} free of {formatSize(breakdown.totalBytes)}</div>
+		{#if status.total_bytes > 0}
+			<div class="legend">
+				<span class="legend-item"><span class="swatch swatch-episodes"></span>Synced audio ({formatSize(breakdown.episodeBytes)})</span>
+				<span class="legend-item"><span class="swatch swatch-other"></span>Other ({formatSize(breakdown.otherBytes)})</span>
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -37,16 +36,47 @@
 		background: var(--color-bar-track);
 		border-radius: var(--radius-sm);
 		overflow: hidden;
+		display: flex;
 	}
-	.bar-fill {
+	.bar-episodes {
 		height: 100%;
-		border-radius: var(--radius-sm);
+		border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 		transition: width 0.3s;
 		background: var(--color-bar-fill);
+	}
+	.bar-other {
+		height: 100%;
+		transition: width 0.3s;
+		background: var(--color-bar-other, #c4a35a);
 	}
 	.label {
 		font-size: var(--font-size-xs);
 		margin-top: 0.25rem;
 		text-align: center;
+	}
+	.legend {
+		display: flex;
+		justify-content: center;
+		gap: 0.75rem;
+		margin-top: 0.25rem;
+		font-size: var(--font-size-xs);
+		opacity: 0.7;
+	}
+	.legend-item {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	.swatch {
+		display: inline-block;
+		width: 8px;
+		height: 8px;
+		border-radius: 2px;
+	}
+	.swatch-episodes {
+		background: var(--color-bar-fill);
+	}
+	.swatch-other {
+		background: var(--color-bar-other, #c4a35a);
 	}
 </style>

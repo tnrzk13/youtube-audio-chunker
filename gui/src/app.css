@@ -50,6 +50,7 @@
   /* Bar */
   --color-bar-track: #eee;
   --color-bar-fill: #999;
+  --color-bar-other: #c4a35a;
 
   /* Radii */
   --radius-sm: 4px;
@@ -129,6 +130,7 @@
   /* Bar */
   --color-bar-track: #333;
   --color-bar-fill: #666;
+  --color-bar-other: #8a7340;
 
   /* Shadows */
   --shadow-dialog: 0 4px 24px rgba(0, 0, 0, 0.5);

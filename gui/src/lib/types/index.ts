@@ -34,6 +34,7 @@ export interface GarminStatus {
 	connected: boolean;
 	episodes: GarminEpisode[];
 	available_bytes: number;
+	total_bytes: number;
 }
 
 export interface ProgressEvent {

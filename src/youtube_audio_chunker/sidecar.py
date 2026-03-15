@@ -22,6 +22,7 @@ from youtube_audio_chunker.errors import (
 from youtube_audio_chunker.garmin import (
     find_garmin_mount,
     get_available_space_bytes,
+    get_total_space_bytes,
     list_garmin_episodes,
     remove_from_garmin,
 )
@@ -131,14 +132,16 @@ def _handle_get_library(params: dict) -> dict:
 def _handle_get_garmin_status(params: dict) -> dict:
     mount = find_garmin_mount()
     if mount is None:
-        return {"connected": False, "episodes": [], "available_bytes": 0}
+        return {"connected": False, "episodes": [], "available_bytes": 0, "total_bytes": 0}
 
     episodes = list_garmin_episodes(mount)
     available = get_available_space_bytes(mount)
+    total = get_total_space_bytes(mount)
     return {
         "connected": True,
         "episodes": [asdict(e) for e in episodes],
         "available_bytes": available,
+        "total_bytes": total,
     }
 
 

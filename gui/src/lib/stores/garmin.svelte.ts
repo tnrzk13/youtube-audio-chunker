@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { GarminStatus, TransferResult } from '$lib/types';
 
-let status = $state<GarminStatus>({ connected: false, episodes: [], available_bytes: 0 });
+let status = $state<GarminStatus>({ connected: false, episodes: [], available_bytes: 0, total_bytes: 0 });
 let loading = $state(false);
 
 export function getGarminStatus() {
@@ -16,7 +16,7 @@ export async function refreshGarmin() {
 	try {
 		status = await invoke<GarminStatus>('get_garmin_status');
 	} catch {
-		status = { connected: false, episodes: [], available_bytes: 0 };
+		status = { connected: false, episodes: [], available_bytes: 0, total_bytes: 0 };
 	} finally {
 		loading = false;
 	}
