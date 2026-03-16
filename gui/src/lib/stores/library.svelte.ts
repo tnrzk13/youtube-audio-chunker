@@ -1,7 +1,7 @@
 import { call } from '$lib/backend';
 import { setActive } from '$lib/stores/progress.svelte';
 import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
-import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates } from '$lib/types';
+import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates, SearchResult, ChannelVideo } from '$lib/types';
 
 let library = $state<Library>({ queue: [], downloaded: [] });
 let loading = $state(false);
@@ -113,4 +113,13 @@ export async function resyncEpisode(videoId: string): Promise<void> {
 export async function editQueueEntry(videoId: string, updates: EpisodeUpdates): Promise<void> {
 	await call('edit_queue_entry', { videoId, updates });
 	await refreshLibrary();
+}
+
+export async function searchYouTube(query: string, offset: number = 0): Promise<SearchResult[]> {
+	const result = await call<{ results: SearchResult[] }>('search_youtube', { query, offset });
+	return result.results;
+}
+
+export async function listChannelVideos(channelUrl: string, offset: number = 0): Promise<{ channel_name: string; videos: ChannelVideo[] }> {
+	return call<{ channel_name: string; videos: ChannelVideo[] }>('list_channel_videos', { channelUrl, offset });
 }

@@ -83,4 +83,20 @@ export interface ListShowsResult {
 	shows: ShowInfo[];
 }
 
+export interface SearchResult {
+	video_id: string;
+	title: string;
+	channel: string;
+	duration_seconds: number;
+	url: string;
+	channel_url: string;
+}
+
+export interface ChannelVideo {
+	video_id: string;
+	title: string;
+	duration_seconds: number;
+	url: string;
+}
+
 export type ContentType = 'music' | 'podcast' | 'audiobook';

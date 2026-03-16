@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR
-from youtube_audio_chunker.downloader import extract_metadata
+from youtube_audio_chunker.downloader import extract_metadata, list_channel_videos, search_youtube
 from youtube_audio_chunker.errors import (
     ChunkerError,
     DependencyError,
@@ -194,6 +194,25 @@ def _handle_edit_queue_entry(params: dict) -> dict:
     if result is None:
         raise ChunkerError(f"Queue entry not found: {video_id}")
     return result
+
+
+# --- Search methods ---
+
+
+def _handle_search_youtube(params: dict) -> dict:
+    query = params.get("query", "")
+    if not query.strip():
+        return {"results": []}
+    offset = params.get("offset", 0)
+    return {"results": search_youtube(query, offset=offset)}
+
+
+def _handle_list_channel_videos(params: dict) -> dict:
+    channel_url = params.get("channel_url", "")
+    if not channel_url.strip():
+        raise ValueError("channel_url is required")
+    offset = params.get("offset", 0)
+    return list_channel_videos(channel_url, offset=offset)
 
 
 # --- Mutation methods ---
@@ -439,6 +458,8 @@ _METHODS = {
     "edit_episode": _handle_edit_episode,
     "resync_episode": _handle_resync_episode,
     "edit_queue_entry": _handle_edit_queue_entry,
+    "search_youtube": _handle_search_youtube,
+    "list_channel_videos": _handle_list_channel_videos,
     "add_to_queue": _handle_add_to_queue,
     "remove_episode": _handle_remove_episode,
     "remove_from_garmin": _handle_remove_from_garmin,

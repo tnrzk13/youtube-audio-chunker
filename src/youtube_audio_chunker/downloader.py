@@ -25,6 +25,71 @@ class DownloadResult:
     channel: str = "Unknown"
 
 
+RESULTS_PAGE_SIZE = 10
+
+
+def search_youtube(query: str, offset: int = 0) -> list[dict]:
+    """Search YouTube and return a page of results starting at offset."""
+    total_needed = offset + RESULTS_PAGE_SIZE
+    opts = {"quiet": True, "no_warnings": True, "extract_flat": True}
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(f"ytsearch{total_needed}:{query}", download=False)
+    entries = [e for e in info.get("entries", []) if e is not None]
+    return [_build_search_result(e) for e in entries[offset:]]
+
+
+def _build_search_result(entry: dict) -> dict:
+    channel_url = (
+        entry.get("channel_url")
+        or entry.get("uploader_url")
+        or _channel_url_from_id(entry.get("channel_id"))
+    )
+    return {
+        "video_id": entry.get("id", ""),
+        "title": entry.get("title", ""),
+        "channel": entry.get("channel") or entry.get("uploader") or "Unknown",
+        "duration_seconds": entry.get("duration") or 0,
+        "url": entry.get("url") or f"https://www.youtube.com/watch?v={entry.get('id', '')}",
+        "channel_url": channel_url or "",
+    }
+
+
+def _channel_url_from_id(channel_id: str | None) -> str | None:
+    if not channel_id:
+        return None
+    return f"https://www.youtube.com/channel/{channel_id}/videos"
+
+
+def list_channel_videos(channel_url: str, offset: int = 0) -> dict:
+    """List videos from a YouTube channel, paginated by offset."""
+    url = channel_url.rstrip("/")
+    if not url.endswith("/videos"):
+        url += "/videos"
+
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        "playliststart": offset + 1,
+        "playlistend": offset + RESULTS_PAGE_SIZE,
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+
+    channel_name = info.get("channel") or info.get("uploader") or "Unknown"
+    videos = [
+        {
+            "video_id": e.get("id", ""),
+            "title": e.get("title", ""),
+            "duration_seconds": e.get("duration") or 0,
+            "url": e.get("url") or f"https://www.youtube.com/watch?v={e.get('id', '')}",
+        }
+        for e in info.get("entries", [])
+        if e is not None
+    ]
+    return {"channel_name": channel_name, "videos": videos}
+
+
 def extract_metadata(url: str) -> list[dict]:
     opts = {"quiet": True, "no_warnings": True, "extract_flat": True}
     with yt_dlp.YoutubeDL(opts) as ydl:

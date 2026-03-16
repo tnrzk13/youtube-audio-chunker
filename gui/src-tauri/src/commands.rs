@@ -190,3 +190,27 @@ pub async fn edit_queue_entry(
         .call("edit_queue_entry", params)
         .await
 }
+
+#[tauri::command]
+pub async fn search_youtube(
+    sidecar: State<'_, ManagedSidecar>,
+    query: String,
+    offset: Option<u32>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "query": query, "offset": offset.unwrap_or(0) });
+    sidecar.lock().await.call("search_youtube", params).await
+}
+
+#[tauri::command]
+pub async fn list_channel_videos(
+    sidecar: State<'_, ManagedSidecar>,
+    channel_url: String,
+    offset: Option<u32>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "channel_url": channel_url, "offset": offset.unwrap_or(0) });
+    sidecar
+        .lock()
+        .await
+        .call("list_channel_videos", params)
+        .await
+}

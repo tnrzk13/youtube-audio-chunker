@@ -43,6 +43,8 @@ pub fn run() {
             commands::edit_episode,
             commands::resync_episode,
             commands::edit_queue_entry,
+            commands::search_youtube,
+            commands::list_channel_videos,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

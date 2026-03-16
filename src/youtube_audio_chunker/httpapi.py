@@ -155,5 +155,69 @@ def main(port: int = DEFAULT_PORT) -> None:
         _METHODS["transfer_unsynced"] = _original_handle_transfer_unsynced
 
 
+def _run_with_reload(port: int = DEFAULT_PORT) -> None:
+    """Re-exec this process whenever a .py file in src/ changes."""
+    import os
+    import signal
+    import subprocess
+    import sys
+
+    from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
+
+    src_dir = os.path.join(os.path.dirname(__file__), os.pardir)
+    child: subprocess.Popen | None = None
+
+    def start_child() -> subprocess.Popen:
+        return subprocess.Popen(
+            [sys.executable, "-m", "youtube_audio_chunker.httpapi", "--port", str(port)],
+        )
+
+    class _ReloadHandler(FileSystemEventHandler):
+        def on_modified(self, event):
+            if event.src_path.endswith(".py"):
+                nonlocal child
+                print(f"\n  Reloading (changed: {os.path.basename(event.src_path)})")
+                if child:
+                    child.terminate()
+                    child.wait()
+                child = start_child()
+
+    child = start_child()
+    observer = Observer()
+    observer.schedule(_ReloadHandler(), src_dir, recursive=True)
+    observer.start()
+    print(f"  Auto-reload watching {os.path.abspath(src_dir)}")
+
+    try:
+        child.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if child:
+            child.terminate()
+            child.wait()
+        observer.stop()
+        observer.join()
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    args = sys.argv[1:]
+    port = DEFAULT_PORT
+    reload = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--port" and i + 1 < len(args):
+            port = int(args[i + 1])
+            i += 2
+        elif args[i] == "--reload":
+            reload = True
+            i += 1
+        else:
+            i += 1
+
+    if reload:
+        _run_with_reload(port)
+    else:
+        main(port)

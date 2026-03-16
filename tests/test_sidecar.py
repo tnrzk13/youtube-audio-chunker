@@ -12,9 +12,11 @@ from youtube_audio_chunker.sidecar import (
     _handle_edit_episode,
     _handle_edit_queue_entry,
     _handle_get_garmin_status,
+    _handle_list_channel_videos,
     _handle_list_shows,
     _handle_rename_show,
     _handle_resync_episode,
+    _handle_search_youtube,
 )
 
 SIDECAR_MODULE = "youtube_audio_chunker.sidecar"
@@ -206,6 +208,73 @@ class TestHandleEditQueueEntry:
 
         with pytest.raises(Exception, match="Queue entry not found: xyz"):
             _handle_edit_queue_entry({"video_id": "xyz", "updates": {}})
+
+
+class TestHandleSearchYoutube:
+    @patch(f"{SIDECAR_MODULE}.search_youtube")
+    def test_returns_results(self, mock_search):
+        mock_search.return_value = [
+            {
+                "video_id": "abc",
+                "title": "Test",
+                "channel": "Ch",
+                "duration_seconds": 120,
+                "url": "https://www.youtube.com/watch?v=abc",
+                "channel_url": "https://www.youtube.com/@Ch",
+            }
+        ]
+
+        result = _handle_search_youtube({"query": "test"})
+
+        assert len(result["results"]) == 1
+        assert result["results"][0]["video_id"] == "abc"
+        mock_search.assert_called_once_with("test", offset=0)
+
+    def test_returns_empty_for_blank_query(self):
+        result = _handle_search_youtube({"query": "  "})
+
+        assert result == {"results": []}
+
+    def test_returns_empty_for_missing_query(self):
+        result = _handle_search_youtube({})
+
+        assert result == {"results": []}
+
+
+class TestHandleListChannelVideos:
+    @patch(f"{SIDECAR_MODULE}.list_channel_videos")
+    def test_returns_channel_videos(self, mock_list):
+        mock_list.return_value = {
+            "channel_name": "Lofi Girl",
+            "videos": [
+                {
+                    "video_id": "v1",
+                    "title": "Lofi Radio",
+                    "duration_seconds": 12250,
+                    "url": "https://www.youtube.com/watch?v=v1",
+                },
+            ],
+        }
+
+        result = _handle_list_channel_videos({
+            "channel_url": "https://www.youtube.com/@LofiGirl"
+        })
+
+        assert result["channel_name"] == "Lofi Girl"
+        assert len(result["videos"]) == 1
+        mock_list.assert_called_once_with("https://www.youtube.com/@LofiGirl", offset=0)
+
+    def test_raises_for_blank_channel_url(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="channel_url is required"):
+            _handle_list_channel_videos({"channel_url": "  "})
+
+    def test_raises_for_missing_channel_url(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="channel_url is required"):
+            _handle_list_channel_videos({})
 
 
 class TestHandleAddToQueueWithShowName:
