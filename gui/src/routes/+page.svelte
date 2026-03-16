@@ -11,20 +11,33 @@
 	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin.svelte';
 	import { getProgress, setActive, initProgressListener } from '$lib/stores/progress.svelte';
 	import { getTheme, toggleTheme } from '$lib/stores/theme.svelte';
+	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
 
 	const library = getLibrary();
 	const theme = getTheme();
+	const settings = getSettings();
 	const garmin = getGarminStatus();
 	const progress = getProgress();
 
 	let transferring = $state(false);
+	let searchResultsVisible = $state(false);
+	let twoColumnClosing = $state(false);
+	let prevSearchVisible = false;
+
+	$effect(() => {
+		if (prevSearchVisible && !searchResultsVisible) {
+			twoColumnClosing = true;
+			setTimeout(() => { twoColumnClosing = false; }, 300);
+		}
+		prevSearchVisible = searchResultsVisible;
+	});
 
 	onMount(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
 		const unlisten = initProgressListener();
 
 		(async () => {
-			await Promise.all([refreshLibrary(), refreshGarmin()]);
+			await Promise.all([refreshLibrary(), refreshGarmin(), refreshSettings()]);
 			interval = setInterval(refreshGarmin, 5000);
 		})();
 
@@ -49,6 +62,11 @@
 			setActive(false);
 		}
 	}
+
+	let layoutWidthPercent = $derived(settings.data.search_layout_width_percent ?? 75);
+	let layoutSplitPercent = $derived(settings.data.search_layout_split_percent ?? 50);
+	let colLeftFlex = $derived(`${layoutWidthPercent * layoutSplitPercent / 100}%`);
+	let colRightFlex = $derived(`${layoutWidthPercent * (100 - layoutSplitPercent) / 100}%`);
 
 	let unsyncedCount = $derived.by(() => {
 		if (!garmin.data.connected) {
@@ -86,8 +104,14 @@
 
 <GarminStatusStrip status={garmin.data} />
 
-<main class="dashboard">
-	<AddEpisodeForm />
+<main
+	class="dashboard"
+	class:two-column={searchResultsVisible || twoColumnClosing}
+	class:two-column-closing={twoColumnClosing}
+	style:--col-left={colLeftFlex}
+	style:--col-right={colRightFlex}
+>
+	<AddEpisodeForm bind:hasResults={searchResultsVisible} />
 	<div class="episode-scroll">
 		<QueueList entries={library.data.queue} />
 		<DownloadedList episodes={library.data.downloaded} />
@@ -186,6 +210,65 @@
 	.episode-scroll {
 		flex: 1;
 		overflow-y: auto;
+	}
+
+	@media (min-width: 750px) {
+		.dashboard.two-column {
+			flex-direction: row;
+			align-items: stretch;
+			justify-content: center;
+			gap: 1rem;
+			padding: 0 1rem;
+		}
+		.dashboard.two-column > :global(:first-child) {
+			max-width: none;
+			flex: 0 1 var(--col-left, 37.5%);
+			min-width: 0;
+			animation: slide-left 0.3s ease-out;
+		}
+		.dashboard.two-column > :global(:last-child) {
+			max-width: none;
+			flex: 0 1 var(--col-right, 37.5%);
+			min-width: 0;
+			animation: slide-right 0.3s ease-out;
+		}
+		.dashboard.two-column > :global(.episode-scroll) {
+			overflow-y: auto;
+		}
+		.dashboard.two-column-closing > :global(:first-child) {
+			animation: slide-left-out 0.3s ease-in forwards;
+		}
+		.dashboard.two-column-closing > :global(:last-child) {
+			animation: slide-right-out 0.3s ease-in forwards;
+		}
+	}
+
+	@keyframes slide-left-out {
+		to {
+			opacity: 0;
+			transform: translateX(40%);
+		}
+	}
+
+	@keyframes slide-right-out {
+		to {
+			opacity: 0;
+			transform: translateX(-40%);
+		}
+	}
+
+	@keyframes slide-left {
+		from {
+			opacity: 0;
+			transform: translateX(40%);
+		}
+	}
+
+	@keyframes slide-right {
+		from {
+			opacity: 0;
+			transform: translateX(-40%);
+		}
 	}
 	.app-footer {
 		flex-shrink: 0;

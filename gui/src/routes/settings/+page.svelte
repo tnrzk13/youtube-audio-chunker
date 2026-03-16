@@ -10,6 +10,8 @@
 	let chunkDuration = $state(300);
 	let defaultArtist = $state('');
 	let keepFull = $state(false);
+	let searchLayoutWidthPercent = $state(75);
+	let searchLayoutSplitPercent = $state(50);
 	let saving = $state(false);
 	let saved = $state(false);
 
@@ -19,6 +21,8 @@
 		chunkDuration = settings.data.chunk_duration_seconds ?? 300;
 		defaultArtist = settings.data.default_artist ?? '';
 		keepFull = settings.data.keep_full ?? false;
+		searchLayoutWidthPercent = settings.data.search_layout_width_percent ?? 75;
+		searchLayoutSplitPercent = settings.data.search_layout_split_percent ?? 50;
 	});
 
 	async function handleSave() {
@@ -29,6 +33,8 @@
 			chunk_duration_seconds: chunkDuration,
 			default_artist: defaultArtist || undefined,
 			keep_full: keepFull,
+			search_layout_width_percent: searchLayoutWidthPercent,
+			search_layout_split_percent: searchLayoutSplitPercent,
 		});
 		saving = false;
 		saved = true;
@@ -70,6 +76,20 @@
 			<input type="checkbox" bind:checked={keepFull} />
 			Keep full audio file after splitting
 		</label>
+	</div>
+
+	<h2 class="section-heading">Search Layout</h2>
+
+	<div class="field">
+		<label for="layout-width">Two-column width ({searchLayoutWidthPercent}%)</label>
+		<input id="layout-width" type="range" bind:value={searchLayoutWidthPercent} min="50" max="100" step="5" />
+		<p class="hint">Total width of the two-column layout when search results are visible. Default: 75%.</p>
+	</div>
+
+	<div class="field">
+		<label for="layout-split">Column split ({searchLayoutSplitPercent}/{100 - searchLayoutSplitPercent})</label>
+		<input id="layout-split" type="range" bind:value={searchLayoutSplitPercent} min="20" max="80" step="5" />
+		<p class="hint">How much space the search panel takes vs the library panel. Default: 50/50.</p>
 	</div>
 
 	<div class="actions">
@@ -171,6 +191,18 @@
 	}
 	input[type='checkbox'] {
 		margin-right: 0.4rem;
+	}
+	.section-heading {
+		font-size: var(--font-size-base);
+		font-weight: 600;
+		margin: 1.5rem 0 0.75rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border-subtle);
+		color: var(--color-text-secondary);
+	}
+	input[type='range'] {
+		width: 100%;
+		accent-color: var(--color-primary);
 	}
 	.hint {
 		font-size: var(--font-size-sm);
