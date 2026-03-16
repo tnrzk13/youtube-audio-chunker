@@ -436,11 +436,12 @@ def _remove_from_local(title: str) -> None:
 
 def _find_episode_by_title(library, title: str) -> tuple[str | None, str | None]:
     """Returns (video_id, folder_name) or (None, None) if not found."""
+    normalized = title.strip().lower()
     for ep in library.downloaded:
-        if ep.title == title:
+        if ep.title.strip().lower() == normalized:
             return ep.video_id, ep.folder_name
     for entry in library.queue:
-        if entry.title == title:
+        if entry.title.strip().lower() == normalized:
             return entry.video_id, None
     return None, None
 

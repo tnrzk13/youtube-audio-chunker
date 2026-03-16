@@ -225,7 +225,7 @@ def download_audio(url: str, output_dir: Path) -> list[DownloadResult]:
 def _build_ydl_opts(output_dir: Path) -> dict:
     return {
         "format": "bestaudio/best",
-        "outtmpl": str(output_dir / "%(title)s.%(ext)s"),
+        "outtmpl": str(output_dir / "%(id)s_%(title)s.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
         "postprocessors": [
@@ -245,12 +245,13 @@ def _build_results(info: dict, output_dir: Path) -> list[DownloadResult]:
         if entry is None:
             continue
         title = entry.get("title", "Unknown")
+        video_id = entry.get("id", "")
         folder_name = sanitize_filename(title)
-        audio_path = _find_audio_file(output_dir, title)
+        audio_path = _find_audio_file(output_dir, title, video_id=video_id)
         channel = entry.get("channel") or entry.get("uploader") or "Unknown"
         results.append(
             DownloadResult(
-                video_id=entry.get("id", ""),
+                video_id=video_id,
                 title=title,
                 artist=entry.get("uploader", "Unknown"),
                 audio_path=audio_path,
@@ -261,17 +262,25 @@ def _build_results(info: dict, output_dir: Path) -> list[DownloadResult]:
     return results
 
 
-def _find_audio_file(output_dir: Path, title: str) -> Path:
+def _find_audio_file(
+    output_dir: Path, title: str, video_id: str = ""
+) -> Path:
+    audio_extensions = ("mp3", "m4a", "opus", "webm")
+
+    # Priority 1: match by video_id prefix (e.g. "abc123_Title.mp3")
+    if video_id:
+        for ext in audio_extensions:
+            for c in output_dir.glob(f"*.{ext}"):
+                if c.stem.startswith(f"{video_id}_"):
+                    return c
+
+    # Priority 2: match by sanitized title (backward compat with legacy files)
     sanitized = sanitize_filename(title)
-    for ext in ("mp3", "m4a", "opus", "webm"):
-        candidates = list(output_dir.glob(f"*.{ext}"))
-        for c in candidates:
+    for ext in audio_extensions:
+        for c in output_dir.glob(f"*.{ext}"):
             if sanitize_filename(c.stem) == sanitized:
                 return c
-    # Fallback: return first mp3
-    mp3s = list(output_dir.glob("*.mp3"))
-    if mp3s:
-        return mp3s[0]
+
     raise DownloadError(
         f"Downloaded file not found for '{title}' in {output_dir}. "
         "Try checking if ffmpeg postprocessing completed."
