@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { getSettings, refreshSettings, saveSettings } from '$lib/stores/settings.svelte';
 	import { getTheme, toggleTheme } from '$lib/stores/theme.svelte';
+	import { getAuthStatus, disconnectAuth, connectCookies } from '$lib/stores/library.svelte';
+	import type { AuthStatus } from '$lib/types';
 
 	const settings = getSettings();
 	const theme = getTheme();
@@ -15,6 +17,11 @@
 	let saving = $state(false);
 	let saved = $state(false);
 
+	let authStatus = $state<AuthStatus>({ method: null, detail: null });
+	let browserOverride = $state('');
+	let disconnecting = $state(false);
+	let reconnecting = $state(false);
+
 	onMount(async () => {
 		await refreshSettings();
 		defaultContentType = settings.data.default_content_type ?? 'podcast';
@@ -23,11 +30,51 @@
 		keepFull = settings.data.keep_full ?? false;
 		searchLayoutWidthPercent = settings.data.search_layout_width_percent ?? 75;
 		searchLayoutSplitPercent = settings.data.search_layout_split_percent ?? 50;
+		browserOverride = settings.data.youtube_cookies_browser ?? '';
+		try {
+			authStatus = await getAuthStatus();
+		} catch { /* not connected */ }
 	});
+
+	async function handleDisconnect() {
+		disconnecting = true;
+		try {
+			await disconnectAuth();
+			authStatus = { method: null, detail: null };
+		} finally {
+			disconnecting = false;
+		}
+	}
+
+	async function handleBrowserOverride() {
+		if (!browserOverride) return;
+		reconnecting = true;
+		try {
+			const result = await connectCookies(browserOverride);
+			if (result.success) {
+				authStatus = await getAuthStatus();
+			}
+		} finally {
+			reconnecting = false;
+		}
+	}
 
 	async function handleSave() {
 		saving = true;
 		saved = false;
+		const youtubeFields: Record<string, any> = {};
+		if (settings.data.youtube_auth_method) {
+			youtubeFields.youtube_auth_method = settings.data.youtube_auth_method;
+		}
+		if (settings.data.youtube_cookies_browser) {
+			youtubeFields.youtube_cookies_browser = settings.data.youtube_cookies_browser;
+		}
+		if (settings.data.youtube_account_name) {
+			youtubeFields.youtube_account_name = settings.data.youtube_account_name;
+		}
+		if (settings.data.youtube_account_email) {
+			youtubeFields.youtube_account_email = settings.data.youtube_account_email;
+		}
 		await saveSettings({
 			default_content_type: defaultContentType,
 			chunk_duration_seconds: chunkDuration,
@@ -35,6 +82,7 @@
 			keep_full: keepFull,
 			search_layout_width_percent: searchLayoutWidthPercent,
 			search_layout_split_percent: searchLayoutSplitPercent,
+			...youtubeFields,
 		});
 		saving = false;
 		saved = true;
@@ -100,6 +148,50 @@
 			<span class="saved-msg">Saved</span>
 		{/if}
 	</div>
+
+	<h2 class="section-heading">YouTube Account</h2>
+
+	{#if authStatus.method}
+		<div class="field">
+			<div class="auth-status">
+				<span class="auth-dot connected"></span>
+				Connected via {authStatus.detail}
+			</div>
+		</div>
+
+		{#if authStatus.method === 'cookies'}
+			<div class="field">
+				<label for="browser-override">Browser</label>
+				<div class="browser-row">
+					<select id="browser-override" bind:value={browserOverride}>
+						<option value="chrome">Chrome</option>
+						<option value="firefox">Firefox</option>
+						<option value="chromium">Chromium</option>
+						<option value="edge">Edge</option>
+						<option value="brave">Brave</option>
+					</select>
+					<button class="browser-apply-btn" onclick={handleBrowserOverride} disabled={reconnecting}>
+						{reconnecting ? 'Applying...' : 'Apply'}
+					</button>
+				</div>
+				<p class="hint">Override which browser to extract YouTube cookies from.</p>
+			</div>
+		{/if}
+
+		<div class="field">
+			<button class="disconnect-btn" onclick={handleDisconnect} disabled={disconnecting}>
+				{disconnecting ? 'Disconnecting...' : 'Disconnect YouTube'}
+			</button>
+		</div>
+	{:else}
+		<div class="field">
+			<div class="auth-status">
+				<span class="auth-dot"></span>
+				Not connected
+			</div>
+			<p class="hint">Connect from the main page sidebar to browse your YouTube feeds.</p>
+		</div>
+	{/if}
 
 	<div class="about">
 		<h2>About</h2>
@@ -233,6 +325,63 @@
 	.saved-msg {
 		font-size: var(--font-size-md);
 		color: var(--color-success);
+	}
+	.auth-status {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: var(--font-size-base);
+		color: var(--color-text);
+	}
+	.auth-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: var(--radius-full);
+		background: var(--color-text-muted);
+		flex-shrink: 0;
+	}
+	.auth-dot.connected {
+		background: var(--color-card-synced);
+	}
+	.browser-row {
+		display: flex;
+		gap: 0.4rem;
+	}
+	.browser-row select {
+		flex: 1;
+	}
+	.browser-apply-btn {
+		font-size: var(--font-size-sm);
+		padding: 0.3rem 0.6rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: none;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: all 0.15s;
+		white-space: nowrap;
+	}
+	.browser-apply-btn:hover:not(:disabled) {
+		background: var(--color-bg-hover);
+	}
+	.browser-apply-btn:disabled {
+		opacity: 0.5;
+	}
+	.disconnect-btn {
+		font-size: var(--font-size-sm);
+		padding: 0.35rem 0.75rem;
+		border: 1px solid var(--color-danger);
+		border-radius: var(--radius-md);
+		background: none;
+		color: var(--color-danger);
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	.disconnect-btn:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+	}
+	.disconnect-btn:disabled {
+		opacity: 0.5;
 	}
 	.about {
 		margin-top: 2.5rem;
