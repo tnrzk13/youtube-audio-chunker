@@ -15,6 +15,7 @@
 		extractTopics,
 	} from '$lib/stores/discover.svelte';
 	import type { ContentType, Topic } from '$lib/types';
+	import { formatDuration } from '$lib/format';
 
 	const discover = getDiscoverState();
 	const settings = getSettings();
@@ -122,15 +123,6 @@
 		} finally {
 			submitting = false;
 		}
-	}
-
-	function formatDuration(seconds: number): string {
-		if (!seconds) return '';
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		const s = seconds % 60;
-		if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-		return `${m}:${String(s).padStart(2, '0')}`;
 	}
 
 	function videoLibraryStatus(videoId: string): { status: 'queued' | 'downloaded' | 'synced'; tooltip: string } | null {

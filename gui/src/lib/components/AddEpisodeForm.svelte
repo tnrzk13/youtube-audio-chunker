@@ -4,6 +4,7 @@
 	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
 	import { getGarminStatus } from '$lib/stores/garmin.svelte';
 	import type { ContentType, SearchResult, ChannelVideo } from '$lib/types';
+	import { formatDuration } from '$lib/format';
 
 	let { hasResults = $bindable(false) }: { hasResults?: boolean } = $props();
 
@@ -225,17 +226,6 @@
 		channelName = '';
 		selectedUrls = new Set();
 		resultsView = 'search';
-	}
-
-	function formatDuration(seconds: number): string {
-		if (!seconds) return '0:00';
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		const s = seconds % 60;
-		if (h > 0) {
-			return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-		}
-		return `${m}:${String(s).padStart(2, '0')}`;
 	}
 
 	const buttonLabel = $derived(
