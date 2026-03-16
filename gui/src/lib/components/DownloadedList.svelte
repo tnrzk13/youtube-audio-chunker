@@ -42,11 +42,13 @@
 
 	function handleBatchDelete() {
 		if (selectedIds.size === 0) return;
+		let ids = new Set(selectedIds);
 		if (pendingBatchDelete) {
 			clearTimeout(pendingBatchDelete.timeoutId);
-			executeBatchDelete(pendingBatchDelete.ids);
+			for (const id of pendingBatchDelete.ids) {
+				ids.add(id);
+			}
 		}
-		const ids = new Set(selectedIds);
 		const count = ids.size;
 		const timeoutId = setTimeout(() => executeBatchDelete(ids), UNDO_DELAY_MS);
 		pendingBatchDelete = { ids, count, timeoutId };
