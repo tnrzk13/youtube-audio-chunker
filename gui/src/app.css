@@ -136,9 +136,9 @@
   --color-overlay: rgba(0, 0, 0, 0.6);
 
   /* Bar */
-  --color-bar-track: #333;
-  --color-bar-fill: #666;
-  --color-bar-other: #8a7340;
+  --color-bar-track: #3a3a4a;
+  --color-bar-fill: #64b5f6;
+  --color-bar-other: #d4a95a;
 
   /* Card sync status */
   --color-card-synced-bg: rgba(102, 187, 106, 0.08);

@@ -64,10 +64,17 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.35rem max(0.75rem, calc((100% - 700px) / 2));
+		padding: 0.35rem 0.75rem;
 		background: var(--color-bg-page);
 		border-bottom: 1px solid var(--color-border-subtle);
 		gap: 1rem;
+		flex-shrink: 0;
+	}
+	@media (min-width: 750px) {
+		.strip {
+			justify-content: center;
+			padding: 0.35rem 1rem;
+		}
 	}
 	.disconnected {
 		color: var(--color-text-muted);
@@ -78,6 +85,11 @@
 		gap: 0.4rem;
 		font-size: var(--font-size-sm);
 		white-space: nowrap;
+	}
+	@media (min-width: 750px) {
+		.status-label {
+			flex: 0 1 var(--col-left, 50%);
+		}
 	}
 	.dot {
 		width: 8px;
@@ -96,6 +108,12 @@
 		flex: 1;
 		max-width: 300px;
 		position: relative;
+	}
+	@media (min-width: 750px) {
+		.storage-inline {
+			flex: 0 1 var(--col-right, 50%);
+			max-width: none;
+		}
 	}
 	.bar {
 		flex: 1;
@@ -131,7 +149,7 @@
 		border-radius: var(--radius-md);
 		padding: 0.5rem 0.65rem;
 		font-size: var(--font-size-xs);
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--shadow-dialog);
 		z-index: 20;
 		min-width: 200px;
 	}

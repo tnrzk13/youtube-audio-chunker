@@ -154,8 +154,6 @@
 	</div>
 </header>
 
-<GarminStatusStrip status={garmin.data} />
-
 <div class="app-layout" class:sidebar-mobile-open={sidebarOpen}>
 	<FeedSidebar
 		bind:activeView
@@ -169,10 +167,13 @@
 	{/if}
 
 	<div
-		class="main-content"
+		class="content-area"
 		style:--col-left={colLeftFlex}
 		style:--col-right={colRightFlex}
 	>
+		<GarminStatusStrip status={garmin.data} />
+
+		<div class="main-content">
 		{#if showFeedContent}
 			<div class="left-column">
 				{#if activeView === 'playlists'}
@@ -222,6 +223,7 @@
 					downloadedEpisodes={library.data.downloaded}
 				/>
 			{/if}
+		</div>
 		</div>
 	</div>
 </div>
@@ -345,13 +347,20 @@
 		display: block;
 	}
 
-	.main-content {
+	.content-area {
 		display: flex;
 		flex-direction: column;
 		flex: 1;
 		overflow: hidden;
 		min-width: 0;
 		background: var(--color-bg-panel);
+	}
+	.main-content {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		overflow: hidden;
+		min-width: 0;
 	}
 	@media (min-width: 750px) {
 		.main-content {
