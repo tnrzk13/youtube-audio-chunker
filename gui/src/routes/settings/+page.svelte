@@ -208,20 +208,20 @@
 		<div class="field">
 			<label for="anthropic-key">Anthropic API key</label>
 			<input id="anthropic-key" type="password" bind:value={anthropicApiKey} placeholder="sk-ant-..." autocomplete="off" />
-			<p class="hint">Get one at console.anthropic.com.</p>
+			<p class="hint">Get one at console.anthropic.com. Or set ANTHROPIC_API_KEY in .env.</p>
 		</div>
 	{:else}
 		<div class="field">
 			<label for="openai-key">OpenAI API key</label>
 			<input id="openai-key" type="password" bind:value={openaiApiKey} placeholder="sk-..." autocomplete="off" />
-			<p class="hint">Get one at platform.openai.com.</p>
+			<p class="hint">Get one at platform.openai.com. Or set OPENAI_API_KEY in .env.</p>
 		</div>
 	{/if}
 
 	<div class="field">
 		<label for="youtube-key">YouTube Data API key</label>
 		<input id="youtube-key" type="password" bind:value={youtubeApiKey} placeholder="AIza..." autocomplete="off" />
-		<p class="hint">Used to search YouTube for topic-related videos. Get one at console.cloud.google.com.</p>
+		<p class="hint">Used to search YouTube for topic-related videos. Or set YOUTUBE_API_KEY in .env.</p>
 	</div>
 
 	<h2 class="section-heading">YouTube Account</h2>

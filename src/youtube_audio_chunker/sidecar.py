@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import threading
@@ -102,8 +103,28 @@ _ASYNC_METHODS = {
 }
 
 
+def _load_dotenv() -> None:
+    """Load .env file from common locations into os.environ (no dependency)."""
+    candidates = [
+        Path.cwd() / ".env",
+        Path(__file__).resolve().parents[2] / ".env",  # project root
+    ]
+    for path in candidates:
+        if path.is_file():
+            for line in path.read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key, value = key.strip(), value.strip()
+                if not os.environ.get(key):
+                    os.environ[key] = value
+            break
+
+
 def main() -> None:
     """Read JSON-RPC requests from stdin, dispatch, write responses to stdout."""
+    _load_dotenv()
     for line in sys.stdin:
         line = line.strip()
         if not line:
@@ -775,11 +796,24 @@ def _maybe_auto_extract_topics(library) -> None:
     thread.start()
 
 
+_ENV_TO_SETTINGS = {
+    "ANTHROPIC_API_KEY": "anthropic_api_key",
+    "OPENAI_API_KEY": "openai_api_key",
+    "YOUTUBE_API_KEY": "youtube_api_key",
+}
+
+
 def _load_settings() -> dict:
+    # Env vars serve as defaults; saved settings override them
+    defaults = {
+        settings_key: val
+        for env_key, settings_key in _ENV_TO_SETTINGS.items()
+        if (val := os.environ.get(env_key))
+    }
     settings_path = _settings_path()
-    if not settings_path.exists():
-        return {}
-    return json.loads(settings_path.read_text())
+    if settings_path.exists():
+        defaults.update(json.loads(settings_path.read_text()))
+    return defaults
 
 
 # --- Method registry ---
