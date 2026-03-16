@@ -9,11 +9,20 @@ from youtube_audio_chunker.library import (
 )
 from youtube_audio_chunker.sidecar import (
     _handle_add_to_queue,
+    _handle_connect_cookies,
+    _handle_detect_browser,
+    _handle_disconnect_auth,
     _handle_edit_episode,
     _handle_edit_queue_entry,
+    _handle_get_auth_status,
     _handle_get_garmin_status,
     _handle_list_channel_videos,
+    _handle_list_home_feed,
+    _handle_list_liked_videos,
+    _handle_list_playlist_videos,
+    _handle_list_playlists,
     _handle_list_shows,
+    _handle_list_subscriptions,
     _handle_rename_show,
     _handle_resync_episode,
     _handle_search_youtube,
@@ -312,3 +321,126 @@ class TestHandleAddToQueueWithShowName:
 
         assert result["added"] == ["Video 1"]
         assert library.queue[0].show_name is None
+
+
+class TestHandleListSubscriptions:
+    @patch(f"{SIDECAR_MODULE}._get_auth_opts", return_value={"cookiesfrombrowser": ("chrome",)})
+    @patch(f"{SIDECAR_MODULE}.list_feed")
+    def test_returns_feed_results(self, mock_feed, mock_auth):
+        mock_feed.return_value = [{"video_id": "v1", "title": "Sub Video"}]
+
+        result = _handle_list_subscriptions({"offset": 10})
+
+        assert result == {"results": [{"video_id": "v1", "title": "Sub Video"}]}
+        mock_feed.assert_called_once_with("https://www.youtube.com/feed/subscriptions", {"cookiesfrombrowser": ("chrome",)}, offset=10)
+
+
+class TestHandleListHomeFeed:
+    @patch(f"{SIDECAR_MODULE}._get_auth_opts", return_value={})
+    @patch(f"{SIDECAR_MODULE}.list_feed")
+    def test_returns_home_results(self, mock_feed, mock_auth):
+        mock_feed.return_value = [{"video_id": "v2", "title": "Home Video"}]
+
+        result = _handle_list_home_feed({})
+
+        mock_feed.assert_called_once_with("https://www.youtube.com/feed/recommended", {}, offset=0)
+        assert result["results"][0]["title"] == "Home Video"
+
+
+class TestHandleListLikedVideos:
+    @patch(f"{SIDECAR_MODULE}._get_auth_opts", return_value={})
+    @patch(f"{SIDECAR_MODULE}.list_feed")
+    def test_returns_liked_results(self, mock_feed, mock_auth):
+        mock_feed.return_value = []
+
+        result = _handle_list_liked_videos({"offset": 0})
+
+        mock_feed.assert_called_once_with("https://www.youtube.com/playlist?list=LL", {}, offset=0)
+        assert result == {"results": []}
+
+
+class TestHandleListPlaylists:
+    @patch(f"{SIDECAR_MODULE}._get_auth_opts", return_value={})
+    @patch(f"{SIDECAR_MODULE}.list_user_playlists")
+    def test_returns_playlists(self, mock_playlists, mock_auth):
+        mock_playlists.return_value = [{"playlist_id": "PL1", "title": "My List", "video_count": 5}]
+
+        result = _handle_list_playlists({})
+
+        assert result == {"playlists": [{"playlist_id": "PL1", "title": "My List", "video_count": 5}]}
+
+
+class TestHandleListPlaylistVideos:
+    @patch(f"{SIDECAR_MODULE}._get_auth_opts", return_value={})
+    @patch(f"{SIDECAR_MODULE}.list_playlist_videos")
+    def test_returns_videos(self, mock_list, mock_auth):
+        mock_list.return_value = [{"video_id": "v1", "title": "PL Video"}]
+
+        result = _handle_list_playlist_videos({"playlist_id": "PLabc", "offset": 0})
+
+        assert result == {"results": [{"video_id": "v1", "title": "PL Video"}]}
+        mock_list.assert_called_once_with("PLabc", {}, offset=0)
+
+    def test_raises_for_blank_playlist_id(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="playlist_id is required"):
+            _handle_list_playlist_videos({"playlist_id": "  "})
+
+
+class TestHandleDetectBrowser:
+    @patch(f"{SIDECAR_MODULE}.detect_browser", return_value="chrome")
+    def test_returns_detected_browser(self, mock_detect):
+        result = _handle_detect_browser({})
+
+        assert result == {"browser": "chrome"}
+
+    @patch(f"{SIDECAR_MODULE}.detect_browser", return_value=None)
+    def test_returns_null_when_none_found(self, mock_detect):
+        result = _handle_detect_browser({})
+
+        assert result == {"browser": None}
+
+
+class TestHandleConnectCookies:
+    @patch(f"{SIDECAR_MODULE}.connect_cookies")
+    def test_delegates_to_auth_module(self, mock_connect):
+        mock_connect.return_value = {"success": True, "browser": "firefox"}
+
+        result = _handle_connect_cookies({"browser": "firefox"})
+
+        assert result == {"success": True, "browser": "firefox"}
+        mock_connect.assert_called_once_with(browser="firefox")
+
+    @patch(f"{SIDECAR_MODULE}.connect_cookies")
+    def test_auto_detects_when_no_browser(self, mock_connect):
+        mock_connect.return_value = {"success": True, "browser": "chrome"}
+
+        result = _handle_connect_cookies({})
+
+        mock_connect.assert_called_once_with(browser=None)
+
+
+class TestHandleGetAuthStatus:
+    @patch(f"{SIDECAR_MODULE}.get_auth_status", return_value=None)
+    def test_returns_null_fields_when_not_connected(self, mock_status):
+        result = _handle_get_auth_status({})
+
+        assert result == {"method": None, "detail": None}
+
+    @patch(f"{SIDECAR_MODULE}.get_auth_status")
+    def test_returns_status(self, mock_status):
+        mock_status.return_value = {"method": "cookies", "detail": "chrome"}
+
+        result = _handle_get_auth_status({})
+
+        assert result == {"method": "cookies", "detail": "chrome"}
+
+
+class TestHandleDisconnectAuth:
+    @patch(f"{SIDECAR_MODULE}.auth_disconnect")
+    def test_calls_disconnect(self, mock_disconnect):
+        result = _handle_disconnect_auth({})
+
+        assert result == {"disconnected": True}
+        mock_disconnect.assert_called_once()

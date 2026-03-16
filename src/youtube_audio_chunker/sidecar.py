@@ -11,8 +11,21 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from youtube_audio_chunker.auth import (
+    connect_cookies,
+    detect_browser,
+    disconnect as auth_disconnect,
+    get_auth_status,
+)
 from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR
-from youtube_audio_chunker.downloader import extract_metadata, list_channel_videos, search_youtube
+from youtube_audio_chunker.downloader import (
+    extract_metadata,
+    list_channel_videos,
+    list_feed,
+    list_playlist_videos,
+    list_user_playlists,
+    search_youtube,
+)
 from youtube_audio_chunker.errors import (
     ChunkerError,
     DependencyError,
@@ -63,7 +76,11 @@ _cancel_event = threading.Event()
 _stdout_lock = threading.Lock()
 
 # Methods that run in a background thread so the main loop stays responsive
-_ASYNC_METHODS = {"process_queue", "transfer_unsynced", "transfer_episode", "resync_episode"}
+_ASYNC_METHODS = {
+    "process_queue", "transfer_unsynced", "transfer_episode", "resync_episode",
+    "list_subscriptions", "list_home_feed", "list_liked_videos",
+    "list_playlists", "list_playlist_videos",
+}
 
 
 def main() -> None:
@@ -448,6 +465,78 @@ def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
     return False
 
 
+# --- Feed methods ---
+
+
+def _get_auth_opts() -> dict:
+    from youtube_audio_chunker.auth import get_ytdlp_auth_opts
+    return get_ytdlp_auth_opts()
+
+
+def _handle_list_subscriptions(params: dict) -> dict:
+    offset = params.get("offset", 0)
+    auth_opts = _get_auth_opts()
+    results = list_feed("https://www.youtube.com/feed/subscriptions", auth_opts, offset=offset)
+    return {"results": results}
+
+
+def _handle_list_home_feed(params: dict) -> dict:
+    offset = params.get("offset", 0)
+    auth_opts = _get_auth_opts()
+    results = list_feed("https://www.youtube.com/feed/recommended", auth_opts, offset=offset)
+    return {"results": results}
+
+
+def _handle_list_liked_videos(params: dict) -> dict:
+    offset = params.get("offset", 0)
+    auth_opts = _get_auth_opts()
+    results = list_feed("https://www.youtube.com/playlist?list=LL", auth_opts, offset=offset)
+    return {"results": results}
+
+
+def _handle_list_playlists(params: dict) -> dict:
+    auth_opts = _get_auth_opts()
+    playlists = list_user_playlists(auth_opts)
+    return {"playlists": playlists}
+
+
+def _handle_list_playlist_videos(params: dict) -> dict:
+    playlist_id = params.get("playlist_id", "")
+    if not playlist_id.strip():
+        raise ValueError("playlist_id is required")
+    offset = params.get("offset", 0)
+    auth_opts = _get_auth_opts()
+    results = list_playlist_videos(playlist_id, auth_opts, offset=offset)
+    return {"results": results}
+
+
+# --- Auth methods ---
+
+
+def _handle_detect_browser(params: dict) -> dict:
+    browser = detect_browser()
+    if browser is None:
+        return {"browser": None}
+    return {"browser": browser}
+
+
+def _handle_connect_cookies(params: dict) -> dict:
+    browser = params.get("browser")
+    return connect_cookies(browser=browser)
+
+
+def _handle_get_auth_status(params: dict) -> dict:
+    status = get_auth_status()
+    if status is None:
+        return {"method": None, "detail": None}
+    return status
+
+
+def _handle_disconnect_auth(params: dict) -> dict:
+    auth_disconnect()
+    return {"disconnected": True}
+
+
 # --- Method registry ---
 
 _METHODS = {
@@ -469,6 +558,15 @@ _METHODS = {
     "get_settings": _handle_get_settings,
     "save_settings": _handle_save_settings,
     "cancel": _handle_cancel,
+    "list_subscriptions": _handle_list_subscriptions,
+    "list_home_feed": _handle_list_home_feed,
+    "list_liked_videos": _handle_list_liked_videos,
+    "list_playlists": _handle_list_playlists,
+    "list_playlist_videos": _handle_list_playlist_videos,
+    "detect_browser": _handle_detect_browser,
+    "connect_cookies": _handle_connect_cookies,
+    "get_auth_status": _handle_get_auth_status,
+    "disconnect_auth": _handle_disconnect_auth,
 }
 
 
