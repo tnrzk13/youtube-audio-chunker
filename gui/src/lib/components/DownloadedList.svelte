@@ -2,6 +2,7 @@
 	import EpisodeCard from './EpisodeCard.svelte';
 	import EpisodeEditForm from './EpisodeEditForm.svelte';
 	import type { DownloadedEpisode, ContentType } from '$lib/types';
+	import { formatDuration } from '$lib/format';
 	import { removeEpisode, removeEpisodes, transferEpisode, editEpisode, resyncEpisode } from '$lib/stores/library.svelte';
 	import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
 	import { setActive } from '$lib/stores/progress.svelte';
@@ -181,7 +182,8 @@
 	function subtitle(ep: DownloadedEpisode): string {
 		const size = formatSize(ep.total_size_bytes);
 		const chunks = ep.chunk_count === 1 ? '1 file' : `${ep.chunk_count} chunks`;
-		return `${chunks} - ${size}`;
+		const duration = ep.duration_seconds ? formatDuration(ep.duration_seconds) : '';
+		return duration ? `${duration} - ${chunks} - ${size}` : `${chunks} - ${size}`;
 	}
 
 	function startEditing(ep: DownloadedEpisode) {

@@ -294,6 +294,7 @@ def _handle_add_to_queue(params: dict) -> dict:
                 video_id=entry["id"],
                 content_type=content_type,
                 show_name=show_name,
+                duration_seconds=entry.get("duration", 0),
             )
             if was_added:
                 added.append(entry["title"])

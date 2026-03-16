@@ -440,3 +440,72 @@ class TestMoveToDownloadedCarriesShowFields:
 
         assert lib.downloaded[0].show_name == "My Show"
         assert lib.downloaded[0].artist == "The Artist"
+
+
+class TestDurationSeconds:
+    def test_add_to_queue_stores_duration(self, empty_library):
+        add_to_queue(
+            empty_library,
+            url="https://www.youtube.com/watch?v=xyz",
+            title="Long Video",
+            video_id="xyz",
+            duration_seconds=3600,
+        )
+        assert empty_library.queue[0].duration_seconds == 3600
+
+    def test_add_to_queue_defaults_duration_to_zero(self, empty_library):
+        add_to_queue(
+            empty_library,
+            url="https://www.youtube.com/watch?v=xyz",
+            title="Video",
+            video_id="xyz",
+        )
+        assert empty_library.queue[0].duration_seconds == 0
+
+    def test_move_to_downloaded_carries_duration(self):
+        entry = QueueEntry(
+            video_id="q1", url="u1", title="Ep 1", added_at="t",
+            duration_seconds=1234,
+        )
+        lib = Library(queue=[entry], downloaded=[])
+        episode_info = {
+            "folder_name": "Ep-1",
+            "chunk_count": 3,
+            "total_size_bytes": 5000,
+        }
+
+        lib = move_to_downloaded(lib, entry, episode_info)
+
+        assert lib.downloaded[0].duration_seconds == 1234
+
+    def test_load_library_without_duration_defaults_to_zero(self, library_path):
+        """Old library.json files without duration_seconds still load."""
+        data = {
+            "queue": [
+                {
+                    "video_id": "old1",
+                    "url": "https://www.youtube.com/watch?v=old1",
+                    "title": "Old Entry",
+                    "added_at": "2026-01-01T00:00:00+00:00",
+                    "content_type": "music",
+                }
+            ],
+            "downloaded": [
+                {
+                    "video_id": "old2",
+                    "url": "https://www.youtube.com/watch?v=old2",
+                    "title": "Old Downloaded",
+                    "folder_name": "Old-Downloaded",
+                    "chunk_count": 3,
+                    "total_size_bytes": 5000,
+                    "downloaded_at": "2026-01-01T00:05:00+00:00",
+                    "synced_at": None,
+                    "content_type": "music",
+                }
+            ],
+        }
+        library_path.write_text(json.dumps(data))
+
+        lib = load_library(library_path)
+        assert lib.queue[0].duration_seconds == 0
+        assert lib.downloaded[0].duration_seconds == 0

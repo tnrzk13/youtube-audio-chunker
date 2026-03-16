@@ -19,6 +19,7 @@ class QueueEntry:
     content_type: str = ContentType.MUSIC.value
     show_name: str | None = None
     artist: str | None = None
+    duration_seconds: int = 0
 
 
 @dataclass
@@ -34,6 +35,7 @@ class DownloadedEpisode:
     content_type: str = ContentType.MUSIC.value
     show_name: str | None = None
     artist: str | None = None
+    duration_seconds: int = 0
 
 
 @dataclass
@@ -69,6 +71,7 @@ def add_to_queue(
     video_id: str,
     content_type: str = ContentType.MUSIC.value,
     show_name: str | None = None,
+    duration_seconds: int = 0,
 ) -> bool:
     """Add a video to the queue. Returns True if added, False if duplicate."""
     existing_ids = {e.video_id for e in library.queue} | {
@@ -84,6 +87,7 @@ def add_to_queue(
         added_at=datetime.now(timezone.utc).isoformat(),
         content_type=content_type,
         show_name=show_name,
+        duration_seconds=duration_seconds,
     )
     library.queue.append(entry)
     return True
@@ -105,6 +109,7 @@ def move_to_downloaded(
         content_type=queue_entry.content_type,
         show_name=queue_entry.show_name,
         artist=queue_entry.artist,
+        duration_seconds=queue_entry.duration_seconds,
     )
     library.downloaded.append(episode)
     return library

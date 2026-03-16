@@ -6,6 +6,7 @@ export interface QueueEntry {
 	content_type: string;
 	show_name: string | null;
 	artist: string | null;
+	duration_seconds: number;
 }
 
 export interface DownloadedEpisode {
@@ -20,6 +21,7 @@ export interface DownloadedEpisode {
 	content_type: string;
 	show_name: string | null;
 	artist: string | null;
+	duration_seconds: number;
 }
 
 export interface Library {
@@ -107,7 +109,15 @@ export interface Playlist {
 	video_count: number;
 }
 
-export type FeedView = 'search' | 'subscriptions' | 'home' | 'liked' | 'playlists' | 'playlist-detail';
+export interface Topic {
+	id: string;
+	name: string;
+	search_query: string;
+	source_video_ids: string[];
+	created_at: string;
+}
+
+export type FeedView = 'search' | 'subscriptions' | 'home' | 'liked' | 'playlists' | 'playlist-detail' | 'discover' | 'discover-topic';
 
 export interface AuthStatus {
 	method: 'cookies' | 'oauth' | null;

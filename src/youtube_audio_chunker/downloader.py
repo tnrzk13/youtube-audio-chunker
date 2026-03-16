@@ -201,11 +201,11 @@ def extract_metadata(url: str) -> list[dict]:
 
     if info.get("_type") == "playlist":
         return [
-            {"id": e["id"], "title": e["title"]}
+            {"id": e["id"], "title": e["title"], "duration": e.get("duration") or 0}
             for e in info.get("entries", [])
             if e is not None
         ]
-    return [{"id": info["id"], "title": info["title"]}]
+    return [{"id": info["id"], "title": info["title"], "duration": info.get("duration") or 0}]
 
 
 def download_audio(url: str, output_dir: Path) -> list[DownloadResult]:
