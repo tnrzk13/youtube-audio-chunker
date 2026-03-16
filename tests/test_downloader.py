@@ -7,6 +7,7 @@ from youtube_audio_chunker.constants import sanitize_filename
 from youtube_audio_chunker.downloader import (
     _build_results,
     _build_search_result,
+    _find_audio_file,
     download_audio,
     extract_metadata,
     list_channel_videos,
@@ -98,8 +99,8 @@ class TestDownloadAudio:
             "title": "Test Video",
             "uploader": "Channel Name",
         }
-        # Simulate the downloaded file
-        expected_file = output_dir / "Test-Video.mp3"
+        # Simulate the downloaded file (new id-prefixed pattern)
+        expected_file = output_dir / "abc123_Test-Video.mp3"
         expected_file.write_bytes(b"\x00" * 100)
 
         results = download_audio(
@@ -131,7 +132,7 @@ class TestDownloadAudio:
             "title": "T",
             "uploader": "U",
         }
-        (output_dir / "T.mp3").write_bytes(b"\x00")
+        (output_dir / "x_T.mp3").write_bytes(b"\x00")
 
         download_audio("https://youtube.com/watch?v=x", output_dir)
 
@@ -163,7 +164,7 @@ class TestChannelExtraction:
         assert result.channel == "Unknown"
 
     def test_build_results_extracts_channel_from_info(self, output_dir):
-        (output_dir / "Test.mp3").write_bytes(b"\x00")
+        (output_dir / "v1_Test.mp3").write_bytes(b"\x00")
         info = {"id": "v1", "title": "Test", "uploader": "Uploader", "channel": "The Channel"}
 
         results = _build_results(info, output_dir)
@@ -171,7 +172,7 @@ class TestChannelExtraction:
         assert results[0].channel == "The Channel"
 
     def test_build_results_falls_back_to_uploader(self, output_dir):
-        (output_dir / "Test.mp3").write_bytes(b"\x00")
+        (output_dir / "v1_Test.mp3").write_bytes(b"\x00")
         info = {"id": "v1", "title": "Test", "uploader": "The Uploader"}
 
         results = _build_results(info, output_dir)
@@ -179,7 +180,7 @@ class TestChannelExtraction:
         assert results[0].channel == "The Uploader"
 
     def test_build_results_falls_back_to_unknown(self, output_dir):
-        (output_dir / "Test.mp3").write_bytes(b"\x00")
+        (output_dir / "v1_Test.mp3").write_bytes(b"\x00")
         info = {"id": "v1", "title": "Test"}
 
         results = _build_results(info, output_dir)
@@ -540,3 +541,65 @@ class TestListPlaylistVideos:
         mock_ydl.extract_info.assert_called_once_with(
             "https://www.youtube.com/playlist?list=PLabc123", download=False
         )
+
+
+class TestFindAudioFile:
+    def test_matches_by_video_id_prefix(self, output_dir):
+        (output_dir / "abc123_Test-Video.mp3").write_bytes(b"\x00")
+
+        result = _find_audio_file(output_dir, "Test Video", video_id="abc123")
+
+        assert result.name == "abc123_Test-Video.mp3"
+
+    def test_falls_back_to_title_match_when_id_missing(self, output_dir):
+        """Legacy files without video_id prefix still match by title."""
+        (output_dir / "Test-Video.mp3").write_bytes(b"\x00")
+
+        result = _find_audio_file(output_dir, "Test Video", video_id="abc123")
+
+        assert result.name == "Test-Video.mp3"
+
+    def test_falls_back_to_title_match_when_id_empty(self, output_dir):
+        (output_dir / "Test-Video.mp3").write_bytes(b"\x00")
+
+        result = _find_audio_file(output_dir, "Test Video", video_id="")
+
+        assert result.name == "Test-Video.mp3"
+
+    def test_prefers_id_match_over_title_match(self, output_dir):
+        """When both id-prefixed and title-only files exist, prefer the id match."""
+        (output_dir / "abc123_Test-Video.mp3").write_bytes(b"\x00")
+        (output_dir / "Test-Video.mp3").write_bytes(b"\x00")
+
+        result = _find_audio_file(output_dir, "Test Video", video_id="abc123")
+
+        assert result.name == "abc123_Test-Video.mp3"
+
+    def test_raises_when_no_match(self, output_dir):
+        """No blind fallback - raises DownloadError when nothing matches."""
+        (output_dir / "totally-different.mp3").write_bytes(b"\x00")
+
+        with pytest.raises(DownloadError, match="not found"):
+            _find_audio_file(output_dir, "My Title", video_id="xyz789")
+
+    def test_stale_mp3_not_picked_up(self, output_dir):
+        """A stale mp3 from a previous download must not be returned."""
+        (output_dir / "old-episode.mp3").write_bytes(b"\x00")
+
+        with pytest.raises(DownloadError):
+            _find_audio_file(output_dir, "New Episode", video_id="new123")
+
+    def test_matches_non_mp3_extension(self, output_dir):
+        (output_dir / "abc123_Test-Video.m4a").write_bytes(b"\x00")
+
+        result = _find_audio_file(output_dir, "Test Video", video_id="abc123")
+
+        assert result.name == "abc123_Test-Video.m4a"
+
+    def test_title_match_without_video_id_param(self, output_dir):
+        """Backward compat: calling without video_id still works via title match."""
+        (output_dir / "Test-Video.mp3").write_bytes(b"\x00")
+
+        result = _find_audio_file(output_dir, "Test Video")
+
+        assert result.name == "Test-Video.mp3"
