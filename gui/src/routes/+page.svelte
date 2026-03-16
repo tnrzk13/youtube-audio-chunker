@@ -69,7 +69,10 @@
 </script>
 
 <header class="toolbar">
-	<h1>youtube-audio-chunker</h1>
+	<div class="toolbar-title">
+		<h1>youtube-audio-chunker</h1>
+		<span class="toolbar-subtitle">Tested with Garmin Forerunner 245 Music</span>
+	</div>
 	<div class="toolbar-actions">
 		<button
 			onclick={handleSyncAll}
@@ -124,10 +127,18 @@
 		flex-shrink: 0;
 		z-index: 1;
 	}
+	.toolbar-title {
+		display: flex;
+		flex-direction: column;
+	}
 	h1 {
 		font-size: var(--font-size-lg);
 		font-weight: 600;
 		margin: 0;
+	}
+	.toolbar-subtitle {
+		font-size: var(--font-size-xs);
+		color: var(--color-text-muted);
 	}
 	.toolbar-actions {
 		display: flex;

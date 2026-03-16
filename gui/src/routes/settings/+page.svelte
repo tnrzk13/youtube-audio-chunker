@@ -85,6 +85,7 @@
 		<h2>About</h2>
 		<p class="about-name">youtube-audio-chunker <span class="about-version">v0.1.0</span></p>
 		<p class="about-desc">Download YouTube audio, split into navigable chunks, and sideload to Garmin watches.</p>
+		<p class="about-desc">Tested on Garmin Forerunner 245 Music. Should work with any music-capable Garmin watch.</p>
 		<p class="about-author">
 			Built by <a href="https://www.tonykwok.info/" target="_blank" rel="noopener">Tony Kwok</a>
 		</p>

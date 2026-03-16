@@ -2,7 +2,7 @@
 
 Download YouTube audio, split into navigable chunks, and sideload to Garmin watches.
 
-Built for the Garmin Forerunner 245 Music (and similar watches that play MP3s via USB/MTP).
+Tested on the Garmin Forerunner 245 Music. Should work with any Garmin watch that supports music via USB/MTP (Forerunner 265/965, Venu series, fenix, epix, etc.).
 
 ## Desktop app
 
