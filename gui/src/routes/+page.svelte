@@ -7,7 +7,7 @@
 	import GarminStatusStrip from '$lib/components/GarminStatusStrip.svelte';
 	import ProgressPanel from '$lib/components/ProgressPanel.svelte';
 	import SpaceManagementDialog from '$lib/components/SpaceManagementDialog.svelte';
-	import { getLibrary, refreshLibrary, processQueue } from '$lib/stores/library.svelte';
+	import { getLibrary, refreshLibrary, startProcessing } from '$lib/stores/library.svelte';
 	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin.svelte';
 	import { getProgress, setActive, initProgressListener } from '$lib/stores/progress.svelte';
 	import { getTheme, toggleTheme } from '$lib/stores/theme.svelte';
@@ -17,7 +17,6 @@
 	const garmin = getGarminStatus();
 	const progress = getProgress();
 
-	let syncing = $state(false);
 	let transferring = $state(false);
 
 	onMount(() => {
@@ -35,16 +34,8 @@
 		};
 	});
 
-	async function handleSyncAll() {
-		syncing = true;
-		setActive(true);
-		try {
-			await processQueue();
-			await refreshGarmin();
-		} finally {
-			syncing = false;
-			setActive(false);
-		}
+	function handleSyncAll() {
+		startProcessing();
 	}
 
 	async function handleTransfer() {
@@ -76,9 +67,9 @@
 	<div class="toolbar-actions">
 		<button
 			onclick={handleSyncAll}
-			disabled={syncing || library.data.queue.length === 0}
+			disabled={library.processing || library.data.queue.length === 0}
 		>
-			{syncing ? 'Syncing...' : 'Sync All'}
+			{library.processing ? 'Syncing...' : 'Sync All'}
 		</button>
 		<button
 			onclick={handleTransfer}

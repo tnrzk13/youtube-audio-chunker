@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { addToQueue, processQueue } from '$lib/stores/library.svelte';
+	import { addToQueue, startProcessing } from '$lib/stores/library.svelte';
 	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
-	import { setActive } from '$lib/stores/progress.svelte';
 	import { getGarminStatus } from '$lib/stores/garmin.svelte';
 	import type { ContentType } from '$lib/types';
 
@@ -43,14 +42,11 @@
 				return;
 			}
 			urlInput = '';
-
-			setActive(true);
-			await processQueue({ noTransfer: !garmin.data.connected });
+			startProcessing({ noTransfer: !garmin.data.connected });
 		} catch (e: any) {
 			errorMsg = e?.message ?? String(e);
 		} finally {
 			submitting = false;
-			setActive(false);
 		}
 	}
 </script>
@@ -70,7 +66,7 @@
 			<option value="audiobook">Audiobook</option>
 		</select>
 		<button type="submit" disabled={submitting || urlInput.trim().length === 0}>
-			{submitting ? 'Syncing...' : '+ Add'}
+			{submitting ? 'Adding...' : '+ Add'}
 		</button>
 	</div>
 	{#if errorMsg}

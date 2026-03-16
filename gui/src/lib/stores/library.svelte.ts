@@ -1,15 +1,19 @@
 import { call } from '$lib/backend';
+import { setActive } from '$lib/stores/progress.svelte';
+import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
 import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates } from '$lib/types';
 
 let library = $state<Library>({ queue: [], downloaded: [] });
 let loading = $state(false);
 let error = $state<string | null>(null);
+let processing = $state(false);
 
 export function getLibrary() {
 	return {
 		get data() { return library; },
 		get loading() { return loading; },
 		get error() { return error; },
+		get processing() { return processing; },
 	};
 }
 
@@ -49,6 +53,26 @@ export async function processQueue(options: {
 	const result = await call<ProcessResult>('process_queue', options);
 	await refreshLibrary();
 	return result;
+}
+
+export function startProcessing(options: {
+	noTransfer?: boolean;
+} = {}) {
+	if (processing) return;
+	processing = true;
+	setActive(true);
+
+	(async () => {
+		try {
+			while (library.queue.length > 0) {
+				await processQueue({ noTransfer: options.noTransfer });
+			}
+			await refreshGarmin();
+		} finally {
+			processing = false;
+			setActive(false);
+		}
+	})();
 }
 
 export async function transferEpisode(videoId: string) {
