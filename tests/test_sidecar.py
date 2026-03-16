@@ -1,3 +1,4 @@
+import threading
 from dataclasses import asdict
 from unittest.mock import patch, MagicMock
 
@@ -10,6 +11,7 @@ from youtube_audio_chunker.library import (
 from youtube_audio_chunker.sidecar import (
     _handle_add_to_queue,
     _handle_connect_cookies,
+    _handle_create_topic,
     _handle_detect_browser,
     _handle_disconnect_auth,
     _handle_edit_episode,
@@ -546,3 +548,90 @@ class TestHandleRemoveFromGarminBatch:
 
         with pytest.raises(Exception, match="No Garmin watch detected"):
             _handle_remove_from_garmin_batch({"folder_names": ["Ep-1"]})
+
+
+class TestConcurrentLibraryAccess:
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_concurrent_rename_show_serialized(self, mock_load, mock_save):
+        """Concurrent rename_show calls should not corrupt data."""
+        library = Library(
+            queue=[],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id=f"d{i}", url=f"u{i}", title=f"Ep {i}",
+                    folder_name=f"ep-{i}", chunk_count=1,
+                    total_size_bytes=100, downloaded_at="t",
+                    synced_at=None, show_name="Original",
+                )
+                for i in range(10)
+            ],
+        )
+        mock_load.return_value = library
+
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def rename_a():
+            try:
+                barrier.wait(timeout=2)
+                _handle_rename_show({"old_name": "Original", "new_name": "Name-A"})
+            except Exception as exc:
+                errors.append(exc)
+
+        def rename_b():
+            try:
+                barrier.wait(timeout=2)
+                _handle_rename_show({"old_name": "Original", "new_name": "Name-B"})
+            except Exception as exc:
+                errors.append(exc)
+
+        t1 = threading.Thread(target=rename_a)
+        t2 = threading.Thread(target=rename_b)
+        t1.start()
+        t2.start()
+        t1.join(timeout=5)
+        t2.join(timeout=5)
+
+        assert errors == []
+        # Both calls completed - the lock serializes them
+        assert mock_save.call_count == 2
+
+
+class TestConcurrentTopicAccess:
+    @patch(f"{SIDECAR_MODULE}.save_topics")
+    @patch(f"{SIDECAR_MODULE}.load_topics")
+    def test_concurrent_create_topic_serialized(self, mock_load, mock_save):
+        """Concurrent create_topic calls should not corrupt data."""
+        from youtube_audio_chunker.topics import TopicStore
+
+        mock_load.return_value = TopicStore(
+            topics=[], dismissed_video_ids=[], video_history=[],
+        )
+
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def create_a():
+            try:
+                barrier.wait(timeout=2)
+                _handle_create_topic({"name": "Topic A", "search_query": "query a"})
+            except Exception as exc:
+                errors.append(exc)
+
+        def create_b():
+            try:
+                barrier.wait(timeout=2)
+                _handle_create_topic({"name": "Topic B", "search_query": "query b"})
+            except Exception as exc:
+                errors.append(exc)
+
+        t1 = threading.Thread(target=create_a)
+        t2 = threading.Thread(target=create_b)
+        t1.start()
+        t2.start()
+        t1.join(timeout=5)
+        t2.join(timeout=5)
+
+        assert errors == []
+        assert mock_save.call_count == 2
