@@ -18,7 +18,7 @@ from youtube_audio_chunker.auth import (
     disconnect as auth_disconnect,
     get_auth_status,
 )
-from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR
+from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR, atomic_write_text
 from youtube_audio_chunker.downloader import (
     extract_metadata,
     list_channel_videos,
@@ -467,8 +467,7 @@ def _handle_get_settings(params: dict) -> dict:
 def _handle_save_settings(params: dict) -> dict:
     settings = params.get("settings", {})
     settings_path = _settings_path()
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(settings, indent=2))
+    atomic_write_text(settings_path, json.dumps(settings, indent=2))
     return {"saved": True}
 
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from youtube_audio_chunker.constants import ContentType, LIBRARY_PATH
+from youtube_audio_chunker.constants import ContentType, LIBRARY_PATH, atomic_write_text
 
 
 @dataclass
@@ -56,12 +56,11 @@ def load_library(path: Path = LIBRARY_PATH) -> Library:
 
 
 def save_library(library: Library, path: Path = LIBRARY_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     data = {
         "queue": [asdict(e) for e in library.queue],
         "downloaded": [asdict(e) for e in library.downloaded],
     }
-    path.write_text(json.dumps(data, indent=2))
+    atomic_write_text(path, json.dumps(data, indent=2))
 
 
 def add_to_queue(

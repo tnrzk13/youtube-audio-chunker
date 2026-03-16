@@ -8,7 +8,7 @@ import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from youtube_audio_chunker.constants import APP_DIR
+from youtube_audio_chunker.constants import APP_DIR, atomic_write_text
 
 CACHE_PATH = APP_DIR / "discovery_cache.json"
 CACHE_TTL_SECONDS = 24 * 60 * 60  # 24 hours
@@ -108,8 +108,7 @@ def load_cache(path: Path = CACHE_PATH) -> dict:
 
 
 def save_cache(cache: dict, path: Path = CACHE_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(cache, indent=2))
+    atomic_write_text(path, json.dumps(cache, indent=2))
 
 
 def get_cached_results(topic_id: str, path: Path = CACHE_PATH) -> dict | None:

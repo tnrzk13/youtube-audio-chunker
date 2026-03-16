@@ -8,7 +8,7 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from youtube_audio_chunker.constants import APP_DIR
+from youtube_audio_chunker.constants import APP_DIR, atomic_write_text
 
 
 TOPICS_PATH = APP_DIR / "topics.json"
@@ -45,13 +45,12 @@ def load_topics(path: Path = TOPICS_PATH) -> TopicStore:
 
 
 def save_topics(store: TopicStore, path: Path = TOPICS_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     data = {
         "topics": [asdict(t) for t in store.topics],
         "dismissed_video_ids": store.dismissed_video_ids,
         "video_history": store.video_history,
     }
-    path.write_text(json.dumps(data, indent=2))
+    atomic_write_text(path, json.dumps(data, indent=2))
 
 
 def add_topic(
