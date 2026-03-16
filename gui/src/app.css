@@ -52,6 +52,10 @@
   --color-bar-fill: #999;
   --color-bar-other: #c4a35a;
 
+  /* Card sync status */
+  --color-card-synced: var(--color-success);
+  --color-card-queued: var(--color-primary);
+
   /* Radii */
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -212,4 +216,11 @@
 }
 .theme-toggle:hover {
   background: var(--color-bg-hover);
+}
+
+.card-status-synced {
+  border-left: 3px solid var(--color-card-synced);
+}
+.card-status-queued {
+  border-left: 3px solid var(--color-card-queued);
 }
