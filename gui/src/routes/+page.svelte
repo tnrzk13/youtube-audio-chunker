@@ -71,7 +71,19 @@
 <header class="toolbar">
 	<h1>youtube-audio-chunker</h1>
 	<div class="toolbar-actions">
-		<a href="/settings" class="settings-link">Settings</a>
+		<button
+			onclick={handleSyncAll}
+			disabled={syncing || library.data.queue.length === 0}
+		>
+			{syncing ? 'Syncing...' : 'Sync All'}
+		</button>
+		<button
+			onclick={handleTransfer}
+			disabled={transferring || unsyncedCount === 0}
+		>
+			{transferring ? 'Transferring...' : `Transfer Unsynced (${unsyncedCount})`}
+		</button>
+		<a href="/settings" class="toolbar-icon">{'\u2699'}</a>
 		<button class="theme-toggle" onclick={toggleTheme}>
 			{theme.isDark ? '\u2600' : '\u263E'}
 		</button>
@@ -114,20 +126,6 @@
 	</section>
 </main>
 
-<footer class="actions-bar">
-	<button
-		onclick={handleSyncAll}
-		disabled={syncing || library.data.queue.length === 0}
-	>
-		{syncing ? 'Syncing...' : 'Sync All'}
-	</button>
-	<button
-		onclick={handleTransfer}
-		disabled={transferring || unsyncedCount === 0}
-	>
-		{transferring ? 'Transferring...' : `Transfer Unsynced (${unsyncedCount})`}
-	</button>
-</footer>
 
 <ProgressPanel />
 <SpaceManagementDialog />
@@ -153,16 +151,39 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
-	.settings-link {
+	.toolbar-actions button:not(.theme-toggle) {
 		font-size: var(--font-size-md);
-		color: var(--color-primary);
-		text-decoration: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		padding: 0.15rem 0.5rem;
+		padding: 0.45rem 0.75rem;
+		border: 1px solid var(--color-primary);
+		border-radius: var(--radius-md);
+		background: var(--color-primary);
+		color: #fff;
+		cursor: pointer;
+		white-space: nowrap;
 		transition: all 0.15s;
 	}
-	.settings-link:hover {
+	.toolbar-actions button:not(.theme-toggle):hover:not(:disabled) {
+		background: var(--color-primary-hover);
+	}
+	.toolbar-actions button:not(.theme-toggle):disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+	.toolbar-icon {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		background: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		font-size: var(--font-size-lg);
+		padding: 0.45rem 0.5rem;
+		line-height: 1;
+		color: inherit;
+		transition: all 0.15s;
+	}
+	.toolbar-icon:hover {
 		background: var(--color-bg-hover);
 	}
 	.dashboard {
@@ -220,31 +241,5 @@
 	}
 	.status-dot.connected {
 		background: var(--color-success);
-	}
-	.actions-bar {
-		display: flex;
-		gap: 0.5rem;
-		padding: 0.5rem 1rem;
-		box-shadow: var(--shadow-footer);
-		background: var(--color-bg-footer);
-		flex-shrink: 0;
-		z-index: 1;
-	}
-	.actions-bar button {
-		font-size: var(--font-size-md);
-		padding: 0.4rem 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: var(--color-bg-panel);
-		color: var(--color-text);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.actions-bar button:hover:not(:disabled) {
-		background: var(--color-bg-button-hover);
-	}
-	.actions-bar button:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>
