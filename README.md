@@ -14,7 +14,9 @@ A Tauri desktop app with a sidebar-driven layout for managing your audio pipelin
 
 - **YouTube account feeds** - connect your YouTube account via browser cookies to browse subscriptions, home feed, liked videos, and playlists directly from the app
 - **Search and browse** - search YouTube or browse a channel's videos; results appear in a two-column layout alongside your library
+- **Discover** - auto-detect topics from your library using an LLM (Anthropic or OpenAI), then explore YouTube for related content. Supports provider and model selection in settings.
 - **Add form** - paste YouTube URLs, pick a content type (music/podcast/audiobook), and queue downloads
+- **Batch delete** - enter select mode on any list, check multiple episodes, and delete them all at once. Downloaded episodes get an undo window before permanent deletion.
 - **Episode list** - all episodes in one view, grouped by content type and show name, with collapsible sections and show groups (state persists across sessions)
 - **Sync status** - color-coded left borders indicate episode state: green = on watch, blue = processing
 - **Garmin status strip** - compact connection indicator with inline storage bar
@@ -23,6 +25,13 @@ A Tauri desktop app with a sidebar-driven layout for managing your audio pipelin
 Editing an episode's metadata (title, show, artist, content type) re-tags the local MP3 files. If the episode is already on the watch, it automatically re-syncs - removing the old copy and transferring the updated files to the correct Garmin folder.
 
 The app includes light/dark theme toggle, real-time progress tracking, configurable settings (chunk duration, default content type, artist name), and space management for the watch.
+
+### API keys
+
+The Discover feature requires API keys. You can set them in Settings or via a `.env` file in the project root (see `.env.example`). Environment variables serve as defaults; values entered in Settings override them.
+
+- **Anthropic or OpenAI** - for topic extraction (auto-detecting themes from your library)
+- **YouTube Data API** - for searching YouTube by topic
 
 ### Installing the desktop app
 
@@ -59,6 +68,18 @@ open src-tauri/target/release/bundle/dmg/*.dmg
 Drag the app to your Applications folder, then launch it from Spotlight or Finder.
 
 ### Running in development mode
+
+For browser-based development (no Tauri/Rust needed):
+
+```bash
+npm install
+npm --prefix gui install
+npm run dev
+```
+
+This starts both the Python HTTP API and the Vite dev server. Open http://localhost:5173.
+
+For the full Tauri desktop app in dev mode:
 
 ```bash
 cd gui
