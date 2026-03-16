@@ -42,7 +42,9 @@ from youtube_audio_chunker.pipeline import (
     PipelineCallbacks,
     SyncOptions,
     edit_episode,
+    edit_queue_entry,
     process_queue,
+    resync_episode,
     transfer_unsynced,
 )
 
@@ -61,7 +63,7 @@ _cancel_event = threading.Event()
 _stdout_lock = threading.Lock()
 
 # Methods that run in a background thread so the main loop stays responsive
-_ASYNC_METHODS = {"process_queue", "transfer_unsynced", "transfer_episode"}
+_ASYNC_METHODS = {"process_queue", "transfer_unsynced", "transfer_episode", "resync_episode"}
 
 
 def main() -> None:
@@ -174,6 +176,23 @@ def _handle_edit_episode(params: dict) -> dict:
     result = edit_episode(video_id, updates)
     if result is None:
         raise ChunkerError(f"Episode not found: {video_id}")
+    return result
+
+
+def _handle_resync_episode(params: dict) -> dict:
+    video_id = params["video_id"]
+    result = resync_episode(video_id)
+    if result is None:
+        raise ChunkerError(f"Episode not found: {video_id}")
+    return result
+
+
+def _handle_edit_queue_entry(params: dict) -> dict:
+    video_id = params["video_id"]
+    updates = params.get("updates", {})
+    result = edit_queue_entry(video_id, updates)
+    if result is None:
+        raise ChunkerError(f"Queue entry not found: {video_id}")
     return result
 
 
@@ -418,6 +437,8 @@ _METHODS = {
     "list_shows": _handle_list_shows,
     "rename_show": _handle_rename_show,
     "edit_episode": _handle_edit_episode,
+    "resync_episode": _handle_resync_episode,
+    "edit_queue_entry": _handle_edit_queue_entry,
     "add_to_queue": _handle_add_to_queue,
     "remove_episode": _handle_remove_episode,
     "remove_from_garmin": _handle_remove_from_garmin,

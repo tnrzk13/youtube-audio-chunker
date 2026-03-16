@@ -444,3 +444,161 @@ class TestEditEpisode:
 
         assert result is None
         mock_save.assert_not_called()
+
+
+class TestResyncEpisode:
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.mark_synced")
+    @patch(f"{MODULE}.copy_to_garmin")
+    @patch(f"{MODULE}.remove_from_garmin")
+    @patch(f"{MODULE}.find_garmin_mount")
+    @patch(f"{MODULE}.load_library")
+    def test_removes_old_and_recopies(
+        self, mock_load, mock_find, mock_remove, mock_copy, mock_mark,
+        mock_save, tmp_path,
+    ):
+        ep = DownloadedEpisode(
+            video_id="abc123", url="u", title="My Episode",
+            folder_name="My-Episode", chunk_count=3,
+            total_size_bytes=5000, downloaded_at="t",
+            synced_at="2026-03-01T12:00:00+00:00",
+            content_type="music", show_name="My Show",
+        )
+        library = Library(queue=[], downloaded=[ep])
+        mock_load.return_value = library
+
+        garmin_mount = tmp_path / "garmin"
+        garmin_mount.mkdir()
+        mock_find.return_value = garmin_mount
+
+        episode_dir = tmp_path / "output" / "My-Episode"
+        episode_dir.mkdir(parents=True)
+        (episode_dir / "01_My-Episode.mp3").write_bytes(b"\x00" * 100)
+
+        from youtube_audio_chunker.pipeline import resync_episode
+        result = resync_episode(
+            "abc123",
+            library_path=tmp_path / "library.json",
+            output_dir=tmp_path / "output",
+        )
+
+        mock_remove.assert_called_once_with("My-Episode", garmin_mount)
+        mock_copy.assert_called_once_with(
+            episode_dir, garmin_mount, ContentType.MUSIC,
+        )
+        mock_mark.assert_called_once()
+        mock_save.assert_called_once()
+        assert result["video_id"] == "abc123"
+
+    @patch(f"{MODULE}.find_garmin_mount", return_value=None)
+    @patch(f"{MODULE}.load_library")
+    def test_raises_when_garmin_not_connected(
+        self, mock_load, mock_find, tmp_path,
+    ):
+        ep = DownloadedEpisode(
+            video_id="abc123", url="u", title="My Episode",
+            folder_name="My-Episode", chunk_count=3,
+            total_size_bytes=5000, downloaded_at="t",
+            synced_at="2026-03-01T12:00:00+00:00",
+            content_type="music",
+        )
+        library = Library(queue=[], downloaded=[ep])
+        mock_load.return_value = library
+
+        from youtube_audio_chunker.pipeline import resync_episode
+        from youtube_audio_chunker.errors import GarminError
+
+        with pytest.raises(GarminError, match="No Garmin watch detected"):
+            resync_episode(
+                "abc123",
+                library_path=tmp_path / "library.json",
+                output_dir=tmp_path / "output",
+            )
+
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.mark_synced")
+    @patch(f"{MODULE}.copy_to_garmin")
+    @patch(f"{MODULE}.remove_from_garmin")
+    @patch(f"{MODULE}.find_garmin_mount")
+    @patch(f"{MODULE}.load_library")
+    def test_handles_content_type_change(
+        self, mock_load, mock_find, mock_remove, mock_copy, mock_mark,
+        mock_save, tmp_path,
+    ):
+        """After editing content_type from podcast to music, resync should
+        remove from old folder (Podcasts/) and copy to new (Music/)."""
+        ep = DownloadedEpisode(
+            video_id="abc123", url="u", title="My Episode",
+            folder_name="My-Episode", chunk_count=1,
+            total_size_bytes=5000, downloaded_at="t",
+            synced_at="2026-03-01T12:00:00+00:00",
+            content_type="music",  # already edited to music
+        )
+        library = Library(queue=[], downloaded=[ep])
+        mock_load.return_value = library
+
+        garmin_mount = tmp_path / "garmin"
+        garmin_mount.mkdir()
+        mock_find.return_value = garmin_mount
+
+        episode_dir = tmp_path / "output" / "My-Episode"
+        episode_dir.mkdir(parents=True)
+        (episode_dir / "My-Episode.mp3").write_bytes(b"\x00" * 100)
+
+        from youtube_audio_chunker.pipeline import resync_episode
+        resync_episode(
+            "abc123",
+            library_path=tmp_path / "library.json",
+            output_dir=tmp_path / "output",
+        )
+
+        # remove_from_garmin searches all dirs, so it finds old location
+        mock_remove.assert_called_once_with("My-Episode", garmin_mount)
+        # copy uses the current content_type
+        mock_copy.assert_called_once_with(
+            episode_dir, garmin_mount, ContentType.MUSIC,
+        )
+
+
+class TestEditQueueEntry:
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.load_library")
+    def test_updates_queue_entry_fields(self, mock_load, mock_save, tmp_path):
+        entry = QueueEntry(
+            video_id="abc123",
+            url="https://youtube.com/watch?v=abc123",
+            title="Original Title",
+            added_at="2026-03-01T12:00:00+00:00",
+            content_type="music",
+            show_name="Old Show",
+        )
+        library = Library(queue=[entry], downloaded=[])
+        mock_load.return_value = library
+
+        from youtube_audio_chunker.pipeline import edit_queue_entry
+        result = edit_queue_entry(
+            "abc123",
+            {"show_name": "New Show", "title": "New Title", "content_type": "podcast"},
+            library_path=tmp_path / "library.json",
+        )
+
+        assert result["show_name"] == "New Show"
+        assert result["title"] == "New Title"
+        assert result["content_type"] == "podcast"
+        mock_save.assert_called_once()
+
+    @patch(f"{MODULE}.save_library")
+    @patch(f"{MODULE}.load_library")
+    def test_returns_none_for_unknown_video(self, mock_load, mock_save, tmp_path):
+        library = Library(queue=[], downloaded=[])
+        mock_load.return_value = library
+
+        from youtube_audio_chunker.pipeline import edit_queue_entry
+        result = edit_queue_entry(
+            "unknown",
+            {"show_name": "X"},
+            library_path=tmp_path / "library.json",
+        )
+
+        assert result is None
+        mock_save.assert_not_called()

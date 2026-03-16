@@ -10,9 +10,11 @@ from youtube_audio_chunker.library import (
 from youtube_audio_chunker.sidecar import (
     _handle_add_to_queue,
     _handle_edit_episode,
+    _handle_edit_queue_entry,
     _handle_get_garmin_status,
     _handle_list_shows,
     _handle_rename_show,
+    _handle_resync_episode,
 )
 
 SIDECAR_MODULE = "youtube_audio_chunker.sidecar"
@@ -161,6 +163,49 @@ class TestHandleEditEpisode:
 
         with pytest.raises(Exception, match="Episode not found: xyz"):
             _handle_edit_episode({"video_id": "xyz", "updates": {}})
+
+
+class TestHandleResyncEpisode:
+    @patch(f"{SIDECAR_MODULE}.resync_episode")
+    def test_passes_through_to_pipeline(self, mock_resync):
+        mock_resync.return_value = {"video_id": "abc", "title": "My Episode"}
+
+        result = _handle_resync_episode({"video_id": "abc"})
+
+        mock_resync.assert_called_once_with("abc")
+        assert result["video_id"] == "abc"
+
+    @patch(f"{SIDECAR_MODULE}.resync_episode", return_value=None)
+    def test_raises_on_not_found(self, mock_resync):
+        import pytest
+
+        with pytest.raises(Exception, match="Episode not found: xyz"):
+            _handle_resync_episode({"video_id": "xyz"})
+
+
+class TestHandleEditQueueEntry:
+    @patch(f"{SIDECAR_MODULE}.edit_queue_entry")
+    def test_passes_through_to_pipeline(self, mock_edit):
+        mock_edit.return_value = {
+            "video_id": "abc",
+            "title": "My Title",
+            "show_name": "New Show",
+        }
+
+        result = _handle_edit_queue_entry({
+            "video_id": "abc",
+            "updates": {"show_name": "New Show"},
+        })
+
+        mock_edit.assert_called_once_with("abc", {"show_name": "New Show"})
+        assert result["show_name"] == "New Show"
+
+    @patch(f"{SIDECAR_MODULE}.edit_queue_entry", return_value=None)
+    def test_raises_on_not_found(self, mock_edit):
+        import pytest
+
+        with pytest.raises(Exception, match="Queue entry not found: xyz"):
+            _handle_edit_queue_entry({"video_id": "xyz", "updates": {}})
 
 
 class TestHandleAddToQueueWithShowName:

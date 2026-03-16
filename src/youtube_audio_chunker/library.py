@@ -161,15 +161,29 @@ def list_shows(library: Library) -> list[dict]:
     ]
 
 
+_EDITABLE_FIELDS = {"show_name", "artist", "title", "content_type"}
+
+
+def _apply_updates(entries, video_id, updates):
+    """Find entry by video_id and apply whitelisted field updates."""
+    for entry in entries:
+        if entry.video_id == video_id:
+            for field, value in updates.items():
+                if field in _EDITABLE_FIELDS:
+                    setattr(entry, field, value)
+            return entry
+    return None
+
+
 def update_episode(
     library: Library, video_id: str, updates: dict
 ) -> DownloadedEpisode | None:
     """Update fields on a downloaded episode. Returns updated episode or None."""
-    allowed_fields = {"show_name", "artist", "title", "content_type"}
-    for episode in library.downloaded:
-        if episode.video_id == video_id:
-            for field, value in updates.items():
-                if field in allowed_fields:
-                    setattr(episode, field, value)
-            return episode
-    return None
+    return _apply_updates(library.downloaded, video_id, updates)
+
+
+def update_queue_entry(
+    library: Library, video_id: str, updates: dict
+) -> QueueEntry | None:
+    """Update fields on a queue entry. Returns updated entry or None."""
+    return _apply_updates(library.queue, video_id, updates)

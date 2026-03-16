@@ -41,6 +41,8 @@ pub fn run() {
             commands::list_shows,
             commands::rename_show,
             commands::edit_episode,
+            commands::resync_episode,
+            commands::edit_queue_entry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

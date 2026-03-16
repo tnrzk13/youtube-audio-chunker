@@ -164,3 +164,29 @@ pub async fn edit_episode(
     });
     sidecar.lock().await.call("edit_episode", params).await
 }
+
+#[tauri::command]
+pub async fn resync_episode(
+    sidecar: State<'_, ManagedSidecar>,
+    video_id: String,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "video_id": video_id });
+    sidecar.lock().await.call("resync_episode", params).await
+}
+
+#[tauri::command]
+pub async fn edit_queue_entry(
+    sidecar: State<'_, ManagedSidecar>,
+    video_id: String,
+    updates: Value,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({
+        "video_id": video_id,
+        "updates": updates,
+    });
+    sidecar
+        .lock()
+        .await
+        .call("edit_queue_entry", params)
+        .await
+}

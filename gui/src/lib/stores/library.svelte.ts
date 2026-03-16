@@ -80,3 +80,13 @@ export async function editEpisode(videoId: string, updates: EpisodeUpdates): Pro
 	await call('edit_episode', { videoId, updates });
 	await refreshLibrary();
 }
+
+export async function resyncEpisode(videoId: string): Promise<void> {
+	await call('resync_episode', { videoId });
+	await refreshLibrary();
+}
+
+export async function editQueueEntry(videoId: string, updates: EpisodeUpdates): Promise<void> {
+	await call('edit_queue_entry', { videoId, updates });
+	await refreshLibrary();
+}
