@@ -22,6 +22,7 @@
 	let anthropicApiKey = $state('');
 	let openaiApiKey = $state('');
 	let youtubeApiKey = $state('');
+	let envKeys = $state<string[]>([]);
 
 	const ANTHROPIC_MODELS = [
 		{ value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest, cheapest)' },
@@ -57,9 +58,10 @@
 		browserOverride = settings.data.youtube_cookies_browser ?? '';
 		topicProvider = settings.data.topic_provider ?? 'anthropic';
 		topicModel = settings.data.topic_model ?? '';
-		anthropicApiKey = settings.data.anthropic_api_key ?? '';
-		openaiApiKey = settings.data.openai_api_key ?? '';
-		youtubeApiKey = settings.data.youtube_api_key ?? '';
+		envKeys = settings.data._env_keys ?? [];
+		anthropicApiKey = envKeys.includes('anthropic_api_key') ? '' : (settings.data.anthropic_api_key ?? '');
+		openaiApiKey = envKeys.includes('openai_api_key') ? '' : (settings.data.openai_api_key ?? '');
+		youtubeApiKey = envKeys.includes('youtube_api_key') ? '' : (settings.data.youtube_api_key ?? '');
 		try {
 			authStatus = await getAuthStatus();
 		} catch { /* not connected */ }
@@ -206,21 +208,48 @@
 
 	{#if topicProvider === 'anthropic'}
 		<div class="field">
-			<label for="anthropic-key">Anthropic API key</label>
-			<input id="anthropic-key" type="password" bind:value={anthropicApiKey} placeholder="sk-ant-..." autocomplete="off" />
+			<label for="anthropic-key">
+				Anthropic API key
+				{#if envKeys.includes('anthropic_api_key')}
+					<span class="env-badge">from .env</span>
+				{/if}
+			</label>
+			{#if envKeys.includes('anthropic_api_key')}
+				<input id="anthropic-key" type="password" bind:value={anthropicApiKey} placeholder="Override .env value..." autocomplete="off" />
+			{:else}
+				<input id="anthropic-key" type="password" bind:value={anthropicApiKey} placeholder="sk-ant-..." autocomplete="off" />
+			{/if}
 			<p class="hint">Get one at console.anthropic.com. Or set ANTHROPIC_API_KEY in .env.</p>
 		</div>
 	{:else}
 		<div class="field">
-			<label for="openai-key">OpenAI API key</label>
-			<input id="openai-key" type="password" bind:value={openaiApiKey} placeholder="sk-..." autocomplete="off" />
+			<label for="openai-key">
+				OpenAI API key
+				{#if envKeys.includes('openai_api_key')}
+					<span class="env-badge">from .env</span>
+				{/if}
+			</label>
+			{#if envKeys.includes('openai_api_key')}
+				<input id="openai-key" type="password" bind:value={openaiApiKey} placeholder="Override .env value..." autocomplete="off" />
+			{:else}
+				<input id="openai-key" type="password" bind:value={openaiApiKey} placeholder="sk-..." autocomplete="off" />
+			{/if}
 			<p class="hint">Get one at platform.openai.com. Or set OPENAI_API_KEY in .env.</p>
 		</div>
 	{/if}
 
 	<div class="field">
-		<label for="youtube-key">YouTube Data API key</label>
-		<input id="youtube-key" type="password" bind:value={youtubeApiKey} placeholder="AIza..." autocomplete="off" />
+		<label for="youtube-key">
+			YouTube Data API key
+			{#if envKeys.includes('youtube_api_key')}
+				<span class="env-badge">from .env</span>
+			{/if}
+		</label>
+		{#if envKeys.includes('youtube_api_key')}
+			<input id="youtube-key" type="password" bind:value={youtubeApiKey} placeholder="Override .env value..." autocomplete="off" />
+		{:else}
+			<input id="youtube-key" type="password" bind:value={youtubeApiKey} placeholder="AIza..." autocomplete="off" />
+		{/if}
 		<p class="hint">Used to search YouTube for topic-related videos. Or set YOUTUBE_API_KEY in .env.</p>
 	</div>
 
@@ -380,6 +409,15 @@
 		font-size: var(--font-size-sm);
 		color: var(--color-text-hint);
 		margin: 0.2rem 0 0;
+	}
+	.env-badge {
+		font-size: var(--font-size-xs);
+		font-weight: 400;
+		color: var(--color-success);
+		background: var(--color-success-light);
+		padding: 0.1rem 0.35rem;
+		border-radius: var(--radius-full);
+		margin-left: 0.3rem;
 	}
 	.actions {
 		display: flex;

@@ -452,9 +452,15 @@ def _handle_transfer_unsynced(params: dict) -> dict:
 
 def _handle_get_settings(params: dict) -> dict:
     settings_path = _settings_path()
-    if not settings_path.exists():
-        return {}
-    return json.loads(settings_path.read_text())
+    saved = json.loads(settings_path.read_text()) if settings_path.exists() else {}
+    env_keys = [
+        settings_key
+        for env_key, settings_key in _ENV_TO_SETTINGS.items()
+        if os.environ.get(env_key) and settings_key not in saved
+    ]
+    merged = _load_settings()
+    merged["_env_keys"] = env_keys
+    return merged
 
 
 def _handle_save_settings(params: dict) -> dict:

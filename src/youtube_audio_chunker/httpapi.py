@@ -107,6 +107,9 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def main(port: int = DEFAULT_PORT) -> None:
+    from youtube_audio_chunker.sidecar import _load_dotenv
+    _load_dotenv()
+
     # Wire progress notifications to SSE broadcast
     from youtube_audio_chunker import pipeline
     from youtube_audio_chunker.pipeline import PipelineCallbacks
