@@ -163,7 +163,13 @@
 			oncancel={cancelEditing}
 		/>
 	{:else}
-		<EpisodeCard title={ep.title} contentType={ep.content_type} subtitle={subtitle(ep)}>
+		<EpisodeCard
+		title={ep.title}
+		contentType={ep.content_type}
+		subtitle={subtitle(ep)}
+		syncStatus={isOnWatch(ep) ? 'synced' : undefined}
+		statusTooltip={isOnWatch(ep) ? 'On watch' : undefined}
+	>
 			{#snippet actions()}
 				<button
 					class="btn-edit"
