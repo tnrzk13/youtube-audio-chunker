@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,6 +57,43 @@ def _build_search_result(entry: dict) -> dict:
     }
 
 
+def _enrich_missing_channels(results: list[dict]) -> None:
+    """Fill in channel names for results missing them, via YouTube oEmbed."""
+    to_enrich = [r for r in results if r["channel"] == "Unknown" and r["video_id"]]
+    if not to_enrich:
+        return
+
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {
+            pool.submit(_fetch_oembed_channel, r["video_id"]): r
+            for r in to_enrich
+        }
+        for future in as_completed(futures):
+            result_dict = futures[future]
+            oembed = future.result()
+            if oembed:
+                result_dict["channel"] = oembed["name"]
+                if not result_dict["channel_url"] and oembed.get("url"):
+                    result_dict["channel_url"] = oembed["url"]
+
+
+def _fetch_oembed_channel(video_id: str) -> dict | None:
+    """Fetch channel name and URL from YouTube oEmbed API."""
+    try:
+        url = (
+            f"https://www.youtube.com/oembed"
+            f"?url=https://www.youtube.com/watch?v={video_id}&format=json"
+        )
+        resp = urllib.request.urlopen(url, timeout=5)
+        data = json.loads(resp.read())
+        return {
+            "name": data.get("author_name", "Unknown"),
+            "url": data.get("author_url", ""),
+        }
+    except Exception:
+        return None
+
+
 def _channel_url_from_id(channel_id: str | None) -> str | None:
     if not channel_id:
         return None
@@ -88,6 +128,70 @@ def list_channel_videos(channel_url: str, offset: int = 0) -> dict:
         if e is not None
     ]
     return {"channel_name": channel_name, "videos": videos}
+
+
+def list_feed(feed_url: str, auth_opts: dict, offset: int = 0) -> list[dict]:
+    """List videos from a YouTube feed (subscriptions, liked, etc.) with auth."""
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        "playliststart": offset + 1,
+        "playlistend": offset + RESULTS_PAGE_SIZE,
+        **auth_opts,
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(feed_url, download=False)
+    entries = [e for e in info.get("entries", []) if e is not None]
+    results = [_build_search_result(e) for e in entries]
+    _enrich_missing_channels(results)
+    return results
+
+
+def list_user_playlists(auth_opts: dict) -> list[dict]:
+    """List the authenticated user's playlists."""
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        **auth_opts,
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(
+            "https://www.youtube.com/feed/library", download=False
+        )
+    return [
+        _build_playlist_result(e)
+        for e in info.get("entries", [])
+        if e is not None
+    ]
+
+
+def list_playlist_videos(
+    playlist_id: str, auth_opts: dict, offset: int = 0
+) -> list[dict]:
+    """List videos in a specific playlist."""
+    url = f"https://www.youtube.com/playlist?list={playlist_id}"
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        "playliststart": offset + 1,
+        "playlistend": offset + RESULTS_PAGE_SIZE,
+        **auth_opts,
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+    entries = [e for e in info.get("entries", []) if e is not None]
+    return [_build_search_result(e) for e in entries]
+
+
+def _build_playlist_result(entry: dict) -> dict:
+    return {
+        "playlist_id": entry.get("id", ""),
+        "title": entry.get("title", ""),
+        "video_count": entry.get("playlist_count") or 0,
+    }
 
 
 def extract_metadata(url: str) -> list[dict]:

@@ -10,6 +10,9 @@ from youtube_audio_chunker.downloader import (
     download_audio,
     extract_metadata,
     list_channel_videos,
+    list_feed,
+    list_user_playlists,
+    list_playlist_videos,
     RESULTS_PAGE_SIZE,
     search_youtube,
     DownloadResult,
@@ -366,3 +369,174 @@ class TestListChannelVideos:
 
         assert result["channel_name"] == "Empty"
         assert result["videos"] == []
+
+
+class TestListFeed:
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_returns_search_results_from_feed(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {
+            "entries": [
+                {
+                    "id": "v1",
+                    "title": "Video 1",
+                    "channel": "Channel A",
+                    "duration": 300,
+                    "url": "https://www.youtube.com/watch?v=v1",
+                    "channel_url": "https://www.youtube.com/@ChannelA",
+                },
+                {
+                    "id": "v2",
+                    "title": "Video 2",
+                    "channel": "Channel B",
+                    "duration": 600,
+                    "url": "https://www.youtube.com/watch?v=v2",
+                    "channel_url": "https://www.youtube.com/@ChannelB",
+                },
+            ],
+        }
+
+        results = list_feed(":ytfeed:subscriptions", auth_opts={}, offset=0)
+
+        assert len(results) == 2
+        assert results[0]["video_id"] == "v1"
+        assert results[0]["title"] == "Video 1"
+        assert results[0]["channel"] == "Channel A"
+        assert results[1]["video_id"] == "v2"
+
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_passes_auth_opts(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {"entries": []}
+
+        list_feed(":ytfeed:subscriptions", auth_opts={"cookiesfrombrowser": ("chrome",)}, offset=0)
+
+        opts = mock_ydl_cls.call_args[0][0]
+        assert opts["cookiesfrombrowser"] == ("chrome",)
+
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_paginates_with_playliststart_and_playlistend(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {"entries": []}
+
+        list_feed(":ytfeed:liked", auth_opts={}, offset=10)
+
+        opts = mock_ydl_cls.call_args[0][0]
+        assert opts["playliststart"] == 11
+        assert opts["playlistend"] == 10 + RESULTS_PAGE_SIZE
+
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_returns_empty_for_no_entries(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {"entries": []}
+
+        results = list_feed(":ytfeed:subscriptions", auth_opts={}, offset=0)
+
+        assert results == []
+
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_skips_none_entries(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {
+            "entries": [
+                None,
+                {"id": "v1", "title": "Good", "duration": 60},
+            ],
+        }
+
+        results = list_feed(":ytfeed:subscriptions", auth_opts={}, offset=0)
+
+        assert len(results) == 1
+        assert results[0]["video_id"] == "v1"
+
+
+class TestListUserPlaylists:
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_returns_playlists(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {
+            "entries": [
+                {
+                    "id": "PLabc",
+                    "title": "My Playlist",
+                    "playlist_count": 12,
+                    "thumbnails": [{"url": "http://img.com/1.jpg"}],
+                },
+                {
+                    "id": "PLdef",
+                    "title": "Another Playlist",
+                    "playlist_count": 5,
+                },
+            ],
+        }
+
+        result = list_user_playlists(auth_opts={"cookiesfrombrowser": ("chrome",)})
+
+        assert len(result) == 2
+        assert result[0]["playlist_id"] == "PLabc"
+        assert result[0]["title"] == "My Playlist"
+        assert result[0]["video_count"] == 12
+        assert result[1]["playlist_id"] == "PLdef"
+        assert result[1]["video_count"] == 5
+
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_returns_empty_for_no_playlists(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {"entries": []}
+
+        result = list_user_playlists(auth_opts={})
+
+        assert result == []
+
+
+class TestListPlaylistVideos:
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_returns_videos_from_playlist(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {
+            "entries": [
+                {
+                    "id": "v1",
+                    "title": "First",
+                    "channel": "Ch",
+                    "duration": 120,
+                    "url": "https://www.youtube.com/watch?v=v1",
+                    "channel_url": "https://www.youtube.com/@Ch",
+                },
+            ],
+        }
+
+        results = list_playlist_videos("PLabc", auth_opts={}, offset=0)
+
+        assert len(results) == 1
+        assert results[0]["video_id"] == "v1"
+        assert results[0]["title"] == "First"
+
+    @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
+    def test_constructs_playlist_url(self, mock_ydl_cls):
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__ = MagicMock(return_value=mock_ydl)
+        mock_ydl_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ydl.extract_info.return_value = {"entries": []}
+
+        list_playlist_videos("PLabc123", auth_opts={}, offset=0)
+
+        mock_ydl.extract_info.assert_called_once_with(
+            "https://www.youtube.com/playlist?list=PLabc123", download=False
+        )
