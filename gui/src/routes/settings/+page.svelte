@@ -17,6 +17,9 @@
 	let saving = $state(false);
 	let saved = $state(false);
 
+	let anthropicApiKey = $state('');
+	let youtubeApiKey = $state('');
+
 	let authStatus = $state<AuthStatus>({ method: null, detail: null });
 	let browserOverride = $state('');
 	let disconnecting = $state(false);
@@ -31,6 +34,8 @@
 		searchLayoutWidthPercent = settings.data.search_layout_width_percent ?? 75;
 		searchLayoutSplitPercent = settings.data.search_layout_split_percent ?? 50;
 		browserOverride = settings.data.youtube_cookies_browser ?? '';
+		anthropicApiKey = settings.data.anthropic_api_key ?? '';
+		youtubeApiKey = settings.data.youtube_api_key ?? '';
 		try {
 			authStatus = await getAuthStatus();
 		} catch { /* not connected */ }
@@ -82,6 +87,8 @@
 			keep_full: keepFull,
 			search_layout_width_percent: searchLayoutWidthPercent,
 			search_layout_split_percent: searchLayoutSplitPercent,
+			anthropic_api_key: anthropicApiKey || undefined,
+			youtube_api_key: youtubeApiKey || undefined,
 			...youtubeFields,
 		});
 		saving = false;
@@ -141,12 +148,26 @@
 	</div>
 
 	<div class="actions">
-		<button onclick={handleSave} disabled={saving}>
+		<button class="btn btn-primary" onclick={handleSave} disabled={saving}>
 			{saving ? 'Saving...' : 'Save'}
 		</button>
 		{#if saved}
 			<span class="saved-msg">Saved</span>
 		{/if}
+	</div>
+
+	<h2 class="section-heading">API Keys (Discover)</h2>
+
+	<div class="field">
+		<label for="anthropic-key">Anthropic API key</label>
+		<input id="anthropic-key" type="password" bind:value={anthropicApiKey} placeholder="sk-ant-..." autocomplete="off" />
+		<p class="hint">Used to auto-detect topics from your library. Get one at console.anthropic.com.</p>
+	</div>
+
+	<div class="field">
+		<label for="youtube-key">YouTube Data API key</label>
+		<input id="youtube-key" type="password" bind:value={youtubeApiKey} placeholder="AIza..." autocomplete="off" />
+		<p class="hint">Used to search YouTube for topic-related videos. Get one at console.cloud.google.com.</p>
 	</div>
 
 	<h2 class="section-heading">YouTube Account</h2>
@@ -170,7 +191,7 @@
 						<option value="edge">Edge</option>
 						<option value="brave">Brave</option>
 					</select>
-					<button class="browser-apply-btn" onclick={handleBrowserOverride} disabled={reconnecting}>
+					<button class="btn btn-sm btn-outline" onclick={handleBrowserOverride} disabled={reconnecting}>
 						{reconnecting ? 'Applying...' : 'Apply'}
 					</button>
 				</div>
@@ -179,7 +200,7 @@
 		{/if}
 
 		<div class="field">
-			<button class="disconnect-btn" onclick={handleDisconnect} disabled={disconnecting}>
+			<button class="btn btn-sm btn-outline-danger" onclick={handleDisconnect} disabled={disconnecting}>
 				{disconnecting ? 'Signing out...' : 'Sign out'}
 			</button>
 		</div>
@@ -258,7 +279,8 @@
 		margin-bottom: 0.3rem;
 	}
 	input[type='number'],
-	input[type='text'] {
+	input[type='text'],
+	input[type='password'] {
 		width: 100%;
 		padding: 0.4rem;
 		font-size: var(--font-size-base);
@@ -267,7 +289,8 @@
 		transition: border-color 0.15s;
 	}
 	input[type='number']:focus,
-	input[type='text']:focus {
+	input[type='text']:focus,
+	input[type='password']:focus {
 		outline: none;
 		border-color: var(--color-primary);
 	}
@@ -309,22 +332,6 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
-	.actions button {
-		font-size: var(--font-size-base);
-		padding: 0.4rem 1.2rem;
-		border: 1px solid var(--color-primary);
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: #fff;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.actions button:hover:not(:disabled) {
-		background: var(--color-primary-hover);
-	}
-	.actions button:disabled {
-		opacity: 0.5;
-	}
 	.saved-msg {
 		font-size: var(--font-size-md);
 		color: var(--color-success);
@@ -352,39 +359,6 @@
 	}
 	.browser-row select {
 		flex: 1;
-	}
-	.browser-apply-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.3rem 0.6rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: none;
-		color: var(--color-text-secondary);
-		cursor: pointer;
-		transition: all 0.15s;
-		white-space: nowrap;
-	}
-	.browser-apply-btn:hover:not(:disabled) {
-		background: var(--color-bg-hover);
-	}
-	.browser-apply-btn:disabled {
-		opacity: 0.5;
-	}
-	.disconnect-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.35rem 0.75rem;
-		border: 1px solid var(--color-danger);
-		border-radius: var(--radius-md);
-		background: none;
-		color: var(--color-danger);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.disconnect-btn:hover:not(:disabled) {
-		background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-	}
-	.disconnect-btn:disabled {
-		opacity: 0.5;
 	}
 	.about {
 		margin-top: 2.5rem;

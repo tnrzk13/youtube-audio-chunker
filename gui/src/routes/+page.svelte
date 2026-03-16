@@ -10,6 +10,7 @@
 	import FeedSidebar from '$lib/components/FeedSidebar.svelte';
 	import FeedView from '$lib/components/FeedView.svelte';
 	import PlaylistGrid from '$lib/components/PlaylistGrid.svelte';
+	import DiscoverView from '$lib/components/DiscoverView.svelte';
 	import AuthModal from '$lib/components/AuthModal.svelte';
 	import { getLibrary, refreshLibrary, startProcessing, getAuthStatus, disconnectAuth, listSubscriptions, listHomeFeed, listLikedVideos, listPlaylistVideos } from '$lib/stores/library.svelte';
 	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin.svelte';
@@ -119,6 +120,7 @@
 	});
 
 	const showFeedContent = $derived(activeView !== 'search');
+	const showDiscover = $derived(activeView === 'discover' || activeView === 'discover-topic');
 </script>
 
 <header class="toolbar">
@@ -134,12 +136,14 @@
 	</div>
 	<div class="toolbar-actions">
 		<button
+			class="btn btn-primary"
 			onclick={handleSyncAll}
 			disabled={library.processing || library.data.queue.length === 0}
 		>
 			{library.processing ? 'Processing...' : 'Process Queue'}
 		</button>
 		<button
+			class="btn btn-primary"
 			onclick={handleTransfer}
 			disabled={transferring || unsyncedCount === 0}
 		>
@@ -171,7 +175,11 @@
 		<GarminStatusStrip status={garmin.data} />
 
 		<div class="main-content">
-		{#if showFeedContent}
+		{#if showDiscover}
+			<div class="left-column">
+				<DiscoverView />
+			</div>
+		{:else if showFeedContent}
 			<div class="left-column">
 				{#if activeView === 'playlists'}
 					<PlaylistGrid
@@ -181,7 +189,7 @@
 					/>
 				{:else if activeView === 'playlist-detail'}
 					<div class="playlist-detail-header">
-						<button class="back-btn" onclick={() => { activeView = 'playlists'; }}>
+						<button class="btn btn-sm btn-outline" onclick={() => { activeView = 'playlists'; }}>
 							&larr; Playlists
 						</button>
 						<span class="playlist-detail-title">{playlistDetailTitle}</span>
@@ -288,24 +296,6 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
-	.toolbar-actions button:not(.theme-toggle) {
-		font-size: var(--font-size-md);
-		padding: 0.45rem 0.75rem;
-		border: 1px solid var(--color-primary);
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: #fff;
-		cursor: pointer;
-		white-space: nowrap;
-		transition: all 0.15s;
-	}
-	.toolbar-actions button:not(.theme-toggle):hover:not(:disabled) {
-		background: var(--color-primary-hover);
-	}
-	.toolbar-actions button:not(.theme-toggle):disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
 	/* App layout with sidebar */
 	.app-layout {
 		display: flex;
@@ -389,19 +379,6 @@
 		padding: 0.4rem 0.75rem;
 		border-bottom: 1px solid var(--color-border-subtle);
 		flex-shrink: 0;
-	}
-	.back-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.15rem 0.4rem;
-		background: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		color: var(--color-text-secondary);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.back-btn:hover {
-		background: var(--color-bg-hover);
 	}
 	.playlist-detail-title {
 		font-size: var(--font-size-sm);

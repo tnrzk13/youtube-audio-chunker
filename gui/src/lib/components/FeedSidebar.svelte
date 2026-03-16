@@ -19,6 +19,7 @@
 		{ view: 'home', icon: '\u{1F3E0}', label: 'Home' },
 		{ view: 'liked', icon: '\u2665', label: 'Liked' },
 		{ view: 'playlists', icon: '\u{1F4CB}', label: 'Playlists' },
+		{ view: 'discover', icon: '\u2728', label: 'Discover' },
 	];
 
 	const isConnected = $derived(authStatus.method !== null);
@@ -56,7 +57,7 @@
 			<li>
 				<button
 					class="sidebar-item"
-					class:active={activeView === item.view || (item.view === 'playlists' && activeView === 'playlist-detail')}
+					class:active={activeView === item.view || (item.view === 'playlists' && activeView === 'playlist-detail') || (item.view === 'discover' && activeView === 'discover-topic')}
 					onclick={() => { activeView = item.view; }}
 				>
 					<span class="sidebar-icon">{item.icon}</span>
@@ -89,7 +90,7 @@
 			{/if}
 		{:else}
 			<a class="popover-item" href="/settings">Settings</a>
-			<button class="connect-btn" onclick={onConnectClick}>
+			<button class="btn btn-sm btn-outline" onclick={onConnectClick}>
 				Connect YouTube
 			</button>
 		{/if}
@@ -249,24 +250,5 @@
 	}
 	.sign-out-item:hover {
 		color: var(--color-danger);
-	}
-	.connect-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		background: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		color: var(--color-text-secondary);
-		font-size: var(--font-size-sm);
-		cursor: pointer;
-		padding: 0.35rem 0.5rem;
-		transition: all 0.15s;
-	}
-	.connect-btn:hover {
-		background: var(--color-bg-hover);
-		color: var(--color-text);
-		border-color: var(--color-primary);
 	}
 </style>
