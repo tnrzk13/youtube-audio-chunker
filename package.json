@@ -1,9 +1,11 @@
 {
   "private": true,
   "scripts": {
-    "dev": "npm --prefix gui run tauri dev",
-    "dev:watch": "watchexec -r -e py -w src -- npm run dev",
+    "dev": "concurrently -n api,gui -c blue,green \"python -m youtube_audio_chunker.httpapi --reload\" \"npm --prefix gui run dev -- --port 5173\"",
     "build": "npm --prefix gui run tauri build",
     "gui:install": "npm --prefix gui install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
