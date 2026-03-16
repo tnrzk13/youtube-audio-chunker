@@ -9,9 +9,11 @@
 	let { episodes }: { episodes: DownloadedEpisode[] } = $props();
 
 	let transferringId = $state<string | null>(null);
-	let removingId = $state<string | null>(null);
 	let editingId = $state<string | null>(null);
 	let savingId = $state<string | null>(null);
+
+	const UNDO_DELAY_MS = 5000;
+	let pendingDelete = $state<{ videoId: string; title: string; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
 
 	let editShowName = $state('');
 	let editArtist = $state('');
@@ -70,11 +72,16 @@
 		ungrouped: DownloadedEpisode[];
 	}
 
+	let visibleEpisodes = $derived.by(() => {
+		const pending = pendingDelete;
+		return pending ? episodes.filter((ep) => ep.video_id !== pending.videoId) : episodes;
+	});
+
 	let sections: Section[] = $derived(
 		SECTION_ORDER
 			.map((label) => {
 				const ct = SECTION_CONTENT_TYPE[label];
-				const items = episodes.filter((ep) => ep.content_type === ct);
+				const items = visibleEpisodes.filter((ep) => ep.content_type === ct);
 				const withShow = items.filter((ep) => ep.show_name);
 				const ungrouped = items.filter((ep) => !ep.show_name);
 
@@ -160,14 +167,24 @@
 		}
 	}
 
-	async function handleRemove(videoId: string, title: string) {
-		if (!confirm(`Delete ${title}? This episode will need to be re-downloaded.`)) return;
-		removingId = videoId;
-		try {
-			await removeEpisode(videoId);
-		} finally {
-			removingId = null;
+	function handleRemove(videoId: string, title: string) {
+		if (pendingDelete) {
+			clearTimeout(pendingDelete.timeoutId);
+			executeDelete(pendingDelete.videoId);
 		}
+		const timeoutId = setTimeout(() => executeDelete(videoId), UNDO_DELAY_MS);
+		pendingDelete = { videoId, title, timeoutId };
+	}
+
+	async function executeDelete(videoId: string) {
+		pendingDelete = null;
+		await removeEpisode(videoId);
+	}
+
+	function undoDelete() {
+		if (!pendingDelete) return;
+		clearTimeout(pendingDelete.timeoutId);
+		pendingDelete = null;
 	}
 
 	async function handleTransfer(videoId: string) {
@@ -227,10 +244,9 @@
 				<button
 					class="btn-icon"
 					onclick={() => handleRemove(ep.video_id, ep.title)}
-					disabled={removingId !== null}
 					title="Delete episode"
 				>
-					{removingId === ep.video_id ? '...' : '✕'}
+					✕
 				</button>
 			{/snippet}
 		</EpisodeCard>
@@ -271,6 +287,13 @@
 			{/each}
 		{/if}
 	{/each}
+{/if}
+
+{#if pendingDelete}
+	<div class="undo-toast">
+		<span>Deleted {pendingDelete.title}</span>
+		<button onclick={undoDelete}>Undo</button>
+	</div>
 {/if}
 
 <style>
@@ -339,17 +362,21 @@
 	}
 	.btn-transfer {
 		background: none;
-		border: 1px solid var(--color-primary);
+		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
 		cursor: pointer;
-		padding: 0.15rem 0.4rem;
-		font-size: var(--font-size-sm);
-		color: var(--color-primary);
-		font-weight: 600;
+		min-width: 32px;
+		min-height: 32px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: var(--font-size-base);
+		color: var(--color-success);
 		transition: all 0.15s;
 	}
 	.btn-transfer:hover:not(:disabled) {
-		background: var(--color-primary-light);
+		background: var(--color-success-light);
+		border-color: var(--color-success);
 	}
 	.btn-transfer:disabled {
 		opacity: 0.5;
@@ -360,5 +387,35 @@
 		color: var(--color-text-muted);
 		cursor: default;
 		padding: 0.15rem 0.2rem;
+	}
+	.undo-toast {
+		position: fixed;
+		bottom: 1.5rem;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		background: var(--color-bg-panel);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		padding: 0.5rem 0.75rem;
+		font-size: var(--font-size-sm);
+		box-shadow: var(--shadow-dialog);
+		z-index: 100;
+	}
+	.undo-toast button {
+		background: none;
+		border: none;
+		color: var(--color-primary);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		cursor: pointer;
+		padding: 0.15rem 0.4rem;
+		border-radius: var(--radius-sm);
+		transition: background 0.15s;
+	}
+	.undo-toast button:hover {
+		background: var(--color-primary-light);
 	}
 </style>
