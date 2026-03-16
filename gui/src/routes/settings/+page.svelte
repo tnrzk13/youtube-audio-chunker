@@ -80,6 +80,18 @@
 			<span class="saved-msg">Saved</span>
 		{/if}
 	</div>
+
+	<div class="about">
+		<h2>About</h2>
+		<p class="about-name">youtube-audio-chunker <span class="about-version">v0.1.0</span></p>
+		<p class="about-desc">Download YouTube audio, split into navigable chunks, and sideload to Garmin watches.</p>
+		<p class="about-author">
+			Built by <a href="https://www.tonykwok.info/" target="_blank" rel="noopener">Tony Kwok</a>
+		</p>
+		<p class="about-links">
+			<a href="https://github.com/tnrzk13" target="_blank" rel="noopener">GitHub</a>
+		</p>
+	</div>
 </main>
 
 <style>
@@ -183,5 +195,36 @@
 	.saved-msg {
 		font-size: var(--font-size-md);
 		color: var(--color-success);
+	}
+	.about {
+		margin-top: 2.5rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--color-border-subtle);
+	}
+	.about h2 {
+		font-size: var(--font-size-base);
+		font-weight: 600;
+		margin: 0 0 0.75rem;
+		color: var(--color-text-secondary);
+	}
+	.about p {
+		margin: 0.3rem 0;
+		font-size: var(--font-size-sm);
+		color: var(--color-text-subtitle);
+	}
+	.about-name {
+		font-weight: 600;
+		color: var(--color-text);
+	}
+	.about-version {
+		font-weight: 400;
+		color: var(--color-text-muted);
+	}
+	.about a {
+		color: var(--color-primary);
+		text-decoration: none;
+	}
+	.about a:hover {
+		text-decoration: underline;
 	}
 </style>

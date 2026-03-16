@@ -106,6 +106,10 @@
 	</div>
 </main>
 
+<footer class="app-footer">
+	Built by <a href="https://www.tonykwok.info/" target="_blank" rel="noopener">Tony Kwok</a>
+</footer>
+
 <ProgressPanel />
 <SpaceManagementDialog />
 
@@ -180,5 +184,22 @@
 	.episode-scroll {
 		flex: 1;
 		overflow-y: auto;
+	}
+	.app-footer {
+		flex-shrink: 0;
+		text-align: center;
+		padding: 0.4rem;
+		font-size: var(--font-size-xs);
+		color: var(--color-text-muted);
+		border-top: 1px solid var(--color-border-subtle);
+		background: var(--color-bg-panel);
+	}
+	.app-footer a {
+		color: var(--color-text-hint);
+		text-decoration: none;
+	}
+	.app-footer a:hover {
+		color: var(--color-primary);
+		text-decoration: underline;
 	}
 </style>
