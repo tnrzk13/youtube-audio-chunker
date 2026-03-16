@@ -119,7 +119,8 @@
 	function subtitle(ep: DownloadedEpisode): string {
 		const size = formatSize(ep.total_size_bytes);
 		const chunks = ep.chunk_count === 1 ? '1 file' : `${ep.chunk_count} chunks`;
-		const sync = ep.synced_at ? 'synced' : 'unsynced';
+		const onWatch = garmin.data.connected ? isOnWatch(ep) : !!ep.synced_at;
+		const sync = onWatch ? 'on watch' : 'local only';
 		return `${chunks} - ${size} - ${sync}`;
 	}
 
