@@ -17,7 +17,7 @@ A Tauri desktop app with a sidebar-driven layout for managing your audio pipelin
 - **Discover** - auto-detect topics from your library using an LLM (Anthropic or OpenAI), then explore YouTube for related content. Supports provider and model selection in settings.
 - **Add form** - paste YouTube URLs, pick a content type (music/podcast/audiobook), and queue downloads
 - **Batch delete** - enter select mode on any list, check multiple episodes, and delete them all at once. Downloaded episodes get an undo window before permanent deletion.
-- **Episode list** - all episodes in one view, grouped by content type and show name, with collapsible sections and show groups (state persists across sessions)
+- **Episode list** - all episodes in one view, grouped by content type and show name, with collapsible sections and show groups (state persists across sessions). Each episode shows its duration, file count, and size.
 - **Sync status** - color-coded left borders indicate episode state: green = on watch, blue = processing
 - **Garmin status strip** - compact connection indicator with inline storage bar
 - **Device-only episodes** - episodes on the watch but not in the local library appear in a separate section
@@ -56,8 +56,6 @@ Requires [Rust](https://rustup.rs/) and the [Tauri prerequisites](https://v2.tau
 ```bash
 sudo dpkg -i src-tauri/target/release/bundle/deb/*.deb
 ```
-
-An AppImage is also produced at `src-tauri/target/release/bundle/appimage/` if you prefer a portable executable that requires no installation.
 
 **macOS** - installs via the `.dmg`:
 
