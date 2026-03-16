@@ -10,9 +10,10 @@ Tested on the Garmin Forerunner 245 Music. Should work with any Garmin watch tha
 |-------|------|
 | ![Light mode](docs/screenshot.png) | ![Dark mode](docs/screenshot-dark.png) |
 
-A Tauri desktop app with a unified episode list for managing your audio pipeline:
+A Tauri desktop app with a sidebar-driven layout for managing your audio pipeline:
 
-- **Search and browse** - search YouTube directly from the app or browse a channel's videos; results appear in an on-demand two-column layout alongside your library
+- **YouTube account feeds** - connect your YouTube account via browser cookies to browse subscriptions, home feed, liked videos, and playlists directly from the app
+- **Search and browse** - search YouTube or browse a channel's videos; results appear in a two-column layout alongside your library
 - **Add form** - paste YouTube URLs, pick a content type (music/podcast/audiobook), and queue downloads
 - **Episode list** - all episodes in one view, grouped by content type and show name, with collapsible sections and show groups (state persists across sessions)
 - **Sync status** - color-coded left borders indicate episode state: green = on watch, blue = processing
