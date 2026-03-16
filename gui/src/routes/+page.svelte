@@ -25,9 +25,6 @@
 	const progress = getProgress();
 
 	let transferring = $state(false);
-	let searchResultsVisible = $state(false);
-	let twoColumnClosing = $state(false);
-	let prevSearchVisible = false;
 
 	let activeView = $state<FeedViewType>('search');
 	let authStatus = $state<AuthStatus>({ method: null, detail: null });
@@ -35,14 +32,6 @@
 	let sidebarOpen = $state(false);
 	let playlistDetailId = $state('');
 	let playlistDetailTitle = $state('');
-
-	$effect(() => {
-		if (prevSearchVisible && !searchResultsVisible) {
-			twoColumnClosing = true;
-			setTimeout(() => { twoColumnClosing = false; }, 300);
-		}
-		prevSearchVisible = searchResultsVisible;
-	});
 
 	onMount(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
@@ -181,13 +170,11 @@
 
 	<div
 		class="main-content"
-		class:two-column={showFeedContent || searchResultsVisible || twoColumnClosing}
-		class:two-column-closing={twoColumnClosing && !showFeedContent}
 		style:--col-left={colLeftFlex}
 		style:--col-right={colRightFlex}
 	>
 		{#if showFeedContent}
-			<div class="feed-column">
+			<div class="left-column">
 				{#if activeView === 'playlists'}
 					<PlaylistGrid
 						{authStatus}
@@ -221,7 +208,9 @@
 				{/if}
 			</div>
 		{:else}
-			<AddEpisodeForm bind:hasResults={searchResultsVisible} />
+			<div class="left-column">
+				<AddEpisodeForm />
+			</div>
 		{/if}
 
 		<div class="episode-scroll">
@@ -363,19 +352,31 @@
 		overflow: hidden;
 		min-width: 0;
 		background: var(--color-bg-panel);
-		align-items: center;
 	}
-	.main-content > :global(*) {
-		width: 100%;
-		max-width: 700px;
+	@media (min-width: 750px) {
+		.main-content {
+			flex-direction: row;
+			align-items: stretch;
+			justify-content: center;
+			gap: 1rem;
+			padding: 0 1rem;
+		}
 	}
 
-	.feed-column {
+	.left-column {
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
 		min-height: 0;
+		min-width: 0;
+		flex: 1;
 	}
+	@media (min-width: 750px) {
+		.left-column {
+			flex: 0 1 var(--col-left, 50%);
+		}
+	}
+
 	.playlist-detail-header {
 		display: flex;
 		align-items: center;
@@ -409,64 +410,11 @@
 	.episode-scroll {
 		flex: 1;
 		overflow-y: auto;
+		min-width: 0;
 	}
-
 	@media (min-width: 750px) {
-		.main-content.two-column {
-			flex-direction: row;
-			align-items: stretch;
-			justify-content: center;
-			gap: 1rem;
-			padding: 0 1rem;
-		}
-		.main-content.two-column > :global(:first-child) {
-			max-width: none;
-			flex: 0 1 var(--col-left, 37.5%);
-			min-width: 0;
-			animation: slide-left 0.3s ease-out;
-		}
-		.main-content.two-column > :global(:last-child) {
-			max-width: none;
-			flex: 0 1 var(--col-right, 37.5%);
-			min-width: 0;
-			animation: slide-right 0.3s ease-out;
-		}
-		.main-content.two-column > :global(.episode-scroll) {
-			overflow-y: auto;
-		}
-		.main-content.two-column-closing > :global(:first-child) {
-			animation: slide-left-out 0.3s ease-in forwards;
-		}
-		.main-content.two-column-closing > :global(:last-child) {
-			animation: slide-right-out 0.3s ease-in forwards;
-		}
-	}
-
-	@keyframes slide-left-out {
-		to {
-			opacity: 0;
-			transform: translateX(40%);
-		}
-	}
-
-	@keyframes slide-right-out {
-		to {
-			opacity: 0;
-			transform: translateX(-40%);
-		}
-	}
-
-	@keyframes slide-left {
-		from {
-			opacity: 0;
-			transform: translateX(40%);
-		}
-	}
-
-	@keyframes slide-right {
-		from {
-			opacity: 0;
-			transform: translateX(-40%);
+		.episode-scroll {
+			flex: 0 1 var(--col-right, 50%);
 		}
 	}
 	.app-footer {
