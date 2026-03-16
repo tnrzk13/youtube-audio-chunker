@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from youtube_audio_chunker.cli import main, build_parser
+from youtube_audio_chunker.cli import main, build_parser, _find_episode_by_title
 from youtube_audio_chunker.library import Library, QueueEntry, DownloadedEpisode
 from youtube_audio_chunker.garmin import GarminEpisode
 
@@ -171,6 +171,63 @@ class TestRemoveCommand:
 
         saved_lib = mock_save.call_args[0][0]
         assert len(saved_lib.downloaded) == 0
+
+
+class TestFindEpisodeByTitle:
+    def test_case_insensitive_match_downloaded(self):
+        library = Library(
+            queue=[],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id="d1", url="u", title="My Episode",
+                    folder_name="My-Episode", chunk_count=3,
+                    total_size_bytes=5000, downloaded_at="t", synced_at=None,
+                ),
+            ],
+        )
+
+        video_id, folder = _find_episode_by_title(library, "my episode")
+
+        assert video_id == "d1"
+        assert folder == "My-Episode"
+
+    def test_case_insensitive_match_queued(self):
+        library = Library(
+            queue=[
+                QueueEntry(video_id="q1", url="u", title="My Episode", added_at="t"),
+            ],
+            downloaded=[],
+        )
+
+        video_id, folder = _find_episode_by_title(library, "MY EPISODE")
+
+        assert video_id == "q1"
+        assert folder is None
+
+    def test_whitespace_stripped_match(self):
+        library = Library(
+            queue=[],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id="d1", url="u", title="My Episode",
+                    folder_name="My-Episode", chunk_count=3,
+                    total_size_bytes=5000, downloaded_at="t", synced_at=None,
+                ),
+            ],
+        )
+
+        video_id, folder = _find_episode_by_title(library, "  My Episode  ")
+
+        assert video_id == "d1"
+        assert folder == "My-Episode"
+
+    def test_returns_none_when_not_found(self):
+        library = Library(queue=[], downloaded=[])
+
+        video_id, folder = _find_episode_by_title(library, "Nonexistent")
+
+        assert video_id is None
+        assert folder is None
 
 
 class TestShowCommand:
