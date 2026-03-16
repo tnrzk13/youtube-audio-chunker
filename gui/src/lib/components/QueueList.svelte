@@ -54,7 +54,7 @@
 		editingId = entry.video_id;
 		editShowName = entry.show_name ?? '';
 		editTitle = entry.title;
-		editContentType = entry.content_type as ContentType;
+		editContentType = entry.content_type;
 	}
 
 	function cancelEditing() {

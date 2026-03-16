@@ -191,7 +191,7 @@
 		editShowName = ep.show_name ?? '';
 		editArtist = ep.artist ?? '';
 		editTitle = ep.title;
-		editContentType = ep.content_type as ContentType;
+		editContentType = ep.content_type;
 	}
 
 	function cancelEditing() {

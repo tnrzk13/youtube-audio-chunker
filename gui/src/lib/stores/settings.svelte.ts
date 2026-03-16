@@ -1,6 +1,20 @@
 import { call } from '$lib/backend';
 
-let settings = $state<Record<string, any>>({});
+export interface Settings {
+	youtube_api_key?: string;
+	anthropic_api_key?: string;
+	openai_api_key?: string;
+	topic_provider?: string;
+	topic_model?: string;
+	youtube_auth_method?: string;
+	youtube_cookies_browser?: string;
+	youtube_account_name?: string;
+	youtube_account_email?: string;
+	_env_keys?: string[];
+	[key: string]: any;
+}
+
+let settings = $state<Settings>({});
 
 export function getSettings() {
 	return {
@@ -10,13 +24,13 @@ export function getSettings() {
 
 export async function refreshSettings() {
 	try {
-		settings = await call<Record<string, any>>('get_settings');
+		settings = await call<Settings>('get_settings');
 	} catch {
 		settings = {};
 	}
 }
 
-export async function saveSettings(newSettings: Record<string, any>) {
+export async function saveSettings(newSettings: Settings) {
 	await call('save_settings', { settings: newSettings });
 	settings = newSettings;
 }

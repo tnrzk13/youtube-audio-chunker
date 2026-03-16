@@ -3,7 +3,7 @@ export interface QueueEntry {
 	url: string;
 	title: string;
 	added_at: string;
-	content_type: string;
+	content_type: ContentType;
 	show_name: string | null;
 	artist: string | null;
 	duration_seconds: number;
@@ -18,7 +18,7 @@ export interface DownloadedEpisode {
 	total_size_bytes: number;
 	downloaded_at: string;
 	synced_at: string | null;
-	content_type: string;
+	content_type: ContentType;
 	show_name: string | null;
 	artist: string | null;
 	duration_seconds: number;
@@ -74,7 +74,7 @@ export interface EpisodeUpdates {
 	show_name?: string;
 	artist?: string;
 	title?: string;
-	content_type?: string;
+	content_type?: ContentType;
 }
 
 export interface RenameShowResult {
