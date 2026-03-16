@@ -20,6 +20,36 @@
 
 	const garmin = getGarminStatus();
 
+	const STORAGE_KEY_SECTIONS = 'collapsed-sections';
+	const STORAGE_KEY_GROUPS = 'collapsed-groups';
+
+	let collapsedSections = $state<Set<string>>(
+		new Set(JSON.parse(localStorage.getItem(STORAGE_KEY_SECTIONS) ?? '[]'))
+	);
+	let collapsedGroups = $state<Set<string>>(
+		new Set(JSON.parse(localStorage.getItem(STORAGE_KEY_GROUPS) ?? '[]'))
+	);
+
+	function toggleSection(label: string) {
+		if (collapsedSections.has(label)) {
+			collapsedSections.delete(label);
+		} else {
+			collapsedSections.add(label);
+		}
+		collapsedSections = new Set(collapsedSections);
+		localStorage.setItem(STORAGE_KEY_SECTIONS, JSON.stringify([...collapsedSections]));
+	}
+
+	function toggleGroup(showName: string) {
+		if (collapsedGroups.has(showName)) {
+			collapsedGroups.delete(showName);
+		} else {
+			collapsedGroups.add(showName);
+		}
+		collapsedGroups = new Set(collapsedGroups);
+		localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify([...collapsedGroups]));
+	}
+
 	const SECTION_ORDER = ['Podcasts', 'Music', 'Audiobooks'] as const;
 	const SECTION_CONTENT_TYPE: Record<string, string> = {
 		Podcasts: 'podcast',
@@ -67,6 +97,10 @@
 			})
 			.filter((s) => s.groups.length > 0 || s.ungrouped.length > 0)
 	);
+
+	function sectionEpisodeCount(section: Section): number {
+		return section.groups.reduce((sum, g) => sum + g.episodes.length, 0) + section.ungrouped.length;
+	}
 
 	function formatSize(bytes: number): string {
 		const mb = bytes / 1_000_000;
@@ -208,41 +242,65 @@
 	<p class="empty">No downloaded episodes</p>
 {:else}
 	{#each sections as section (section.label)}
-		<div class="section-header">{section.label}</div>
+		<button class="section-header" onclick={() => toggleSection(section.label)}>
+			<span class="chevron" class:collapsed={collapsedSections.has(section.label)}>{'\u25BE'}</span>
+			{section.label}
+			<span class="section-count">{sectionEpisodeCount(section)}</span>
+		</button>
 
-		{#each section.groups as group (group.showName)}
-			<div class="show-group">
-				<div class="show-header">
-					{group.showName}
-					<span class="show-meta">
-						{group.episodes.length} {group.episodes.length === 1 ? 'episode' : 'episodes'}
-						- {formatSize(group.totalSize)}
-					</span>
+		{#if !collapsedSections.has(section.label)}
+			{#each section.groups as group (group.showName)}
+				<div class="show-group">
+					<button class="show-header" onclick={() => toggleGroup(group.showName)}>
+						<span class="chevron" class:collapsed={collapsedGroups.has(group.showName)}>{'\u25BE'}</span>
+						{group.showName}
+						<span class="show-meta">
+							{group.episodes.length} {group.episodes.length === 1 ? 'episode' : 'episodes'}
+							- {formatSize(group.totalSize)}
+						</span>
+					</button>
+					{#if !collapsedGroups.has(group.showName)}
+						{#each group.episodes as ep (ep.video_id)}
+							{@render episodeRow(ep)}
+						{/each}
+					{/if}
 				</div>
-				{#each group.episodes as ep (ep.video_id)}
-					{@render episodeRow(ep)}
-				{/each}
-			</div>
-		{/each}
+			{/each}
 
-		{#each section.ungrouped as ep (ep.video_id)}
-			{@render episodeRow(ep)}
-		{/each}
+			{#each section.ungrouped as ep (ep.video_id)}
+				{@render episodeRow(ep)}
+			{/each}
+		{/if}
 	{/each}
 {/if}
 
 <style>
 	.section-header {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		width: 100%;
+		background: none;
+		border: none;
+		border-top: 1px solid var(--color-border-subtle);
 		font-size: var(--font-size-xs);
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		color: var(--color-text-hint);
 		padding: 0.5rem 0.75rem 0.2rem;
-		border-top: 1px solid var(--color-border-subtle);
+		cursor: pointer;
+		text-align: left;
 	}
 	.section-header:first-child {
 		border-top: none;
+	}
+	.section-header:hover {
+		color: var(--color-text-secondary);
+	}
+	.section-count {
+		font-weight: 400;
+		color: var(--color-text-muted);
 	}
 	.show-group {
 		margin: 0.5rem 0.5rem 0.5rem 0.75rem;
@@ -251,13 +309,29 @@
 		background: var(--color-bg-hover);
 	}
 	.show-header {
+		display: flex;
+		align-items: baseline;
+		gap: 0.4rem;
+		width: 100%;
+		background: none;
+		border: none;
 		font-size: var(--font-size-sm);
 		font-weight: 600;
 		color: var(--color-text);
 		padding: 0.45rem 0.75rem 0.15rem;
-		display: flex;
-		align-items: baseline;
-		gap: 0.4rem;
+		cursor: pointer;
+		text-align: left;
+	}
+	.show-header:hover {
+		color: var(--color-primary);
+	}
+	.chevron {
+		display: inline-block;
+		transition: transform 0.15s;
+		font-size: var(--font-size-xs);
+	}
+	.chevron.collapsed {
+		transform: rotate(-90deg);
 	}
 	.show-meta {
 		font-weight: 400;
