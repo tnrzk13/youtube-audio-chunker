@@ -6,7 +6,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from youtube_audio_chunker.constants import APP_DIR
+from youtube_audio_chunker.constants import APP_DIR, atomic_write_text
 
 AUTH_FILE = "auth.json"
 BROWSER_DETECT_ORDER = ("chrome", "firefox", "chromium", "edge", "brave")
@@ -186,8 +186,7 @@ def _load_settings() -> dict:
 
 def _save_settings(settings: dict) -> None:
     path = _settings_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(settings, indent=2))
+    atomic_write_text(path, json.dumps(settings, indent=2))
 
 
 def _load_auth() -> dict:
@@ -202,5 +201,4 @@ def _load_auth() -> dict:
 
 def _save_auth(auth: dict) -> None:
     path = APP_DIR / AUTH_FILE
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(auth, indent=2))
+    atomic_write_text(path, json.dumps(auth, indent=2))

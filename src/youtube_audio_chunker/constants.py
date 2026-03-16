@@ -1,4 +1,6 @@
+import os
 import re
+import tempfile
 from enum import Enum
 from pathlib import Path
 
@@ -28,6 +30,22 @@ GARMIN_DIRS = {
     ContentType.PODCAST: "Podcasts",
     ContentType.AUDIOBOOK: "Audiobooks",
 }
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write text to path atomically via temp file + os.replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def sanitize_filename(name: str) -> str:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import sys
@@ -18,7 +19,7 @@ from youtube_audio_chunker.auth import (
     disconnect as auth_disconnect,
     get_auth_status,
 )
-from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR
+from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR, atomic_write_text
 from youtube_audio_chunker.downloader import (
     extract_metadata,
     list_channel_videos,
@@ -92,6 +93,8 @@ INTERNAL_ERROR = -32603
 
 _cancel_event = threading.Event()
 _stdout_lock = threading.Lock()
+_library_lock = threading.Lock()
+_topics_lock = threading.Lock()
 
 # Methods that run in a background thread so the main loop stays responsive
 _ASYNC_METHODS = {
@@ -124,6 +127,7 @@ def _load_dotenv() -> None:
 
 def main() -> None:
     """Read JSON-RPC requests from stdin, dispatch, write responses to stdout."""
+    global _confirm_result
     _load_dotenv()
     for line in sys.stdin:
         line = line.strip()
@@ -133,6 +137,16 @@ def main() -> None:
             request = json.loads(line)
         except json.JSONDecodeError as exc:
             _write_error(None, PARSE_ERROR, f"Parse error: {exc}")
+            continue
+
+        # Check if this is a confirmation response for a pending reverse request
+        if (
+            _confirm_request_id is not None
+            and request.get("id") == _confirm_request_id
+            and "result" in request
+        ):
+            _confirm_result = request["result"]
+            _confirm_event.set()
             continue
 
         _dispatch(request)
@@ -190,11 +204,12 @@ def _handle_cancel(params: dict) -> dict:
 
 
 def _handle_get_library(params: dict) -> dict:
-    library = load_library()
-    return {
-        "queue": [asdict(e) for e in library.queue],
-        "downloaded": [asdict(e) for e in library.downloaded],
-    }
+    with _library_lock:
+        library = load_library()
+        return {
+            "queue": [asdict(e) for e in library.queue],
+            "downloaded": [asdict(e) for e in library.downloaded],
+        }
 
 
 def _handle_get_garmin_status(params: dict) -> dict:
@@ -214,23 +229,26 @@ def _handle_get_garmin_status(params: dict) -> dict:
 
 
 def _handle_list_shows(params: dict) -> dict:
-    library = load_library()
-    return {"shows": list_shows(library)}
+    with _library_lock:
+        library = load_library()
+        return {"shows": list_shows(library)}
 
 
 def _handle_rename_show(params: dict) -> dict:
     old_name = params["old_name"]
     new_name = params["new_name"]
-    library = load_library()
-    count = rename_show(library, old_name, new_name)
-    save_library(library)
+    with _library_lock:
+        library = load_library()
+        count = rename_show(library, old_name, new_name)
+        save_library(library)
     return {"renamed": count}
 
 
 def _handle_edit_episode(params: dict) -> dict:
     video_id = params["video_id"]
     updates = params.get("updates", {})
-    result = edit_episode(video_id, updates)
+    with _library_lock:
+        result = edit_episode(video_id, updates)
     if result is None:
         raise ChunkerError(f"Episode not found: {video_id}")
     return result
@@ -238,7 +256,8 @@ def _handle_edit_episode(params: dict) -> dict:
 
 def _handle_resync_episode(params: dict) -> dict:
     video_id = params["video_id"]
-    result = resync_episode(video_id)
+    with _library_lock:
+        result = resync_episode(video_id)
     if result is None:
         raise ChunkerError(f"Episode not found: {video_id}")
     return result
@@ -247,7 +266,8 @@ def _handle_resync_episode(params: dict) -> dict:
 def _handle_edit_queue_entry(params: dict) -> dict:
     video_id = params["video_id"]
     updates = params.get("updates", {})
-    result = edit_queue_entry(video_id, updates)
+    with _library_lock:
+        result = edit_queue_entry(video_id, updates)
     if result is None:
         raise ChunkerError(f"Queue entry not found: {video_id}")
     return result
@@ -279,31 +299,32 @@ def _handle_add_to_queue(params: dict) -> dict:
     urls = params.get("urls", [])
     content_type = params.get("content_type", ContentType.MUSIC.value)
     show_name = params.get("show_name")
-    library = load_library()
     added = []
     added_ids = []
     skipped = []
 
-    for url in urls:
-        entries = extract_metadata(url)
-        for entry in entries:
-            was_added = add_to_queue(
-                library,
-                url=url,
-                title=entry["title"],
-                video_id=entry["id"],
-                content_type=content_type,
-                show_name=show_name,
-                duration_seconds=entry.get("duration", 0),
-            )
-            if was_added:
-                added.append(entry["title"])
-                added_ids.append(entry["id"])
-            else:
-                skipped.append(entry["title"])
+    with _library_lock:
+        library = load_library()
+        for url in urls:
+            entries = extract_metadata(url)
+            for entry in entries:
+                was_added = add_to_queue(
+                    library,
+                    url=url,
+                    title=entry["title"],
+                    video_id=entry["id"],
+                    content_type=content_type,
+                    show_name=show_name,
+                    duration_seconds=entry.get("duration", 0),
+                )
+                if was_added:
+                    added.append(entry["title"])
+                    added_ids.append(entry["id"])
+                else:
+                    skipped.append(entry["title"])
+        save_library(library)
 
-    save_library(library)
-
+    # Topic operations acquire their own lock
     if added_ids:
         _record_history_for_ids(added_ids)
         _maybe_auto_extract_topics(library)
@@ -313,13 +334,13 @@ def _handle_add_to_queue(params: dict) -> dict:
 
 def _handle_remove_episode(params: dict) -> dict:
     video_id = params["video_id"]
-    library = load_library()
+    with _library_lock:
+        library = load_library()
+        episode_dir = OUTPUT_DIR / _find_folder_name(library, video_id)
+        remove_episode(library, video_id)
+        save_library(library)
 
     _record_history_for_ids([video_id])
-
-    episode_dir = OUTPUT_DIR / _find_folder_name(library, video_id)
-    remove_episode(library, video_id)
-    save_library(library)
 
     if episode_dir.exists():
         shutil.rmtree(episode_dir)
@@ -338,18 +359,17 @@ def _handle_remove_from_garmin(params: dict) -> dict:
 
 def _handle_remove_episodes(params: dict) -> dict:
     video_ids = params["video_ids"]
-    library = load_library()
+    with _library_lock:
+        library = load_library()
+        folder_names = [
+            ep.folder_name
+            for ep in library.downloaded
+            if ep.video_id in set(video_ids)
+        ]
+        remove_episodes(library, set(video_ids))
+        save_library(library)
 
     _record_history_for_ids(video_ids)
-
-    folder_names = [
-        ep.folder_name
-        for ep in library.downloaded
-        if ep.video_id in set(video_ids)
-    ]
-
-    remove_episodes(library, set(video_ids))
-    save_library(library)
 
     failed = []
     for folder_name in folder_names:
@@ -396,7 +416,8 @@ def _handle_process_queue(params: dict) -> dict:
         on_confirm_removal=_request_confirm_removal,
         is_cancelled=_is_cancelled,
     )
-    return process_queue(options, callbacks)
+    with _library_lock:
+        return process_queue(options, callbacks)
 
 
 # --- Transfer single episode ---
@@ -404,34 +425,35 @@ def _handle_process_queue(params: dict) -> dict:
 
 def _handle_transfer_episode(params: dict) -> dict:
     video_id = params["video_id"]
-    library = load_library()
-    ep = next((e for e in library.downloaded if e.video_id == video_id), None)
-    if ep is None:
-        raise ChunkerError(f"Episode not found: {video_id}")
+    with _library_lock:
+        library = load_library()
+        ep = next((e for e in library.downloaded if e.video_id == video_id), None)
+        if ep is None:
+            raise ChunkerError(f"Episode not found: {video_id}")
 
-    garmin_mount = find_garmin_mount()
-    if garmin_mount is None:
-        raise GarminError("No Garmin watch detected.")
+        garmin_mount = find_garmin_mount()
+        if garmin_mount is None:
+            raise GarminError("No Garmin watch detected.")
 
-    episode_dir = OUTPUT_DIR / ep.folder_name
-    if not episode_dir.exists():
-        raise ChunkerError(f"Files not found: {ep.title}")
+        episode_dir = OUTPUT_DIR / ep.folder_name
+        if not episode_dir.exists():
+            raise ChunkerError(f"Files not found: {ep.title}")
 
-    content_type = ContentType(ep.content_type)
-    needed = dir_size_bytes(episode_dir)
-    available = get_available_space_bytes(garmin_mount)
+        content_type = ContentType(ep.content_type)
+        needed = dir_size_bytes(episode_dir)
+        available = get_available_space_bytes(garmin_mount)
 
-    if needed > available:
-        raise GarminError(
-            f"Not enough space on watch. Need {needed // 1_000_000} MB, "
-            f"have {available // 1_000_000} MB free."
-        )
+        if needed > available:
+            raise GarminError(
+                f"Not enough space on watch. Need {needed // 1_000_000} MB, "
+                f"have {available // 1_000_000} MB free."
+            )
 
-    _notify_progress("transfer", ep.video_id, f"Transferring: {ep.title}", 0)
-    copy_to_garmin(episode_dir, garmin_mount, content_type)
-    mark_synced(library, ep.video_id)
-    save_library(library)
-    _notify_progress("transfer", ep.video_id, f"Synced: {ep.title}", 100)
+        _notify_progress("transfer", ep.video_id, f"Transferring: {ep.title}", 0)
+        copy_to_garmin(episode_dir, garmin_mount, content_type)
+        mark_synced(library, ep.video_id)
+        save_library(library)
+        _notify_progress("transfer", ep.video_id, f"Synced: {ep.title}", 100)
 
     return {"transferred": video_id}
 
@@ -467,8 +489,7 @@ def _handle_get_settings(params: dict) -> dict:
 def _handle_save_settings(params: dict) -> dict:
     settings = params.get("settings", {})
     settings_path = _settings_path()
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(settings, indent=2))
+    atomic_write_text(settings_path, json.dumps(settings, indent=2))
     return {"saved": True}
 
 
@@ -531,14 +552,20 @@ def _notify_progress(
 
 _NEXT_REVERSE_ID = 1000
 _reverse_lock = threading.Lock()
+_confirm_event = threading.Event()
+_confirm_result: bool = False
+_confirm_request_id: int | None = None
 
 
 def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
-    """Send a reverse JSON-RPC request to the frontend for user confirmation."""
-    global _NEXT_REVERSE_ID
+    """Send a reverse JSON-RPC request and wait for main loop to relay the response."""
+    global _NEXT_REVERSE_ID, _confirm_result, _confirm_request_id
     with _reverse_lock:
         request_id = _NEXT_REVERSE_ID
         _NEXT_REVERSE_ID += 1
+
+    _confirm_event.clear()
+    _confirm_request_id = request_id
 
     request = {
         "jsonrpc": "2.0",
@@ -550,20 +577,10 @@ def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
         sys.stdout.write(json.dumps(request) + "\n")
         sys.stdout.flush()
 
-    # Read the response from stdin
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            response = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        if response.get("id") == request_id:
-            return response.get("result", False)
-
-    return False
+    # Wait for main() to signal the response (5 min timeout)
+    _confirm_event.wait(timeout=300)
+    _confirm_request_id = None
+    return _confirm_result
 
 
 # --- Feed methods ---
@@ -642,46 +659,51 @@ def _handle_disconnect_auth(params: dict) -> dict:
 
 
 def _handle_get_topics(params: dict) -> dict:
-    store = load_topics()
-    return {"topics": [asdict(t) for t in store.topics]}
+    with _topics_lock:
+        store = load_topics()
+        return {"topics": [asdict(t) for t in store.topics]}
 
 
 def _handle_create_topic(params: dict) -> dict:
     name = params["name"]
     search_query = params["search_query"]
-    store = load_topics()
-    add_topic(store, name, search_query, source_video_ids=[])
-    save_topics(store)
-    return {"topics": [asdict(t) for t in store.topics]}
+    with _topics_lock:
+        store = load_topics()
+        add_topic(store, name, search_query, source_video_ids=[])
+        save_topics(store)
+        return {"topics": [asdict(t) for t in store.topics]}
 
 
 def _handle_update_topic(params: dict) -> dict:
     topic_id = params["topic_id"]
-    store = load_topics()
-    result = update_topic(
-        store, topic_id,
-        name=params.get("name"),
-        search_query=params.get("search_query"),
-    )
-    if result is None:
-        raise ChunkerError(f"Topic not found: {topic_id}")
-    save_topics(store)
-    return asdict(result)
+    with _topics_lock:
+        store = load_topics()
+        result = update_topic(
+            store, topic_id,
+            name=params.get("name"),
+            search_query=params.get("search_query"),
+        )
+        if result is None:
+            raise ChunkerError(f"Topic not found: {topic_id}")
+        save_topics(store)
+        return asdict(result)
 
 
 def _handle_delete_topic(params: dict) -> dict:
     topic_id = params["topic_id"]
-    store = load_topics()
-    delete_topic(store, topic_id)
-    save_topics(store)
+    with _topics_lock:
+        store = load_topics()
+        delete_topic(store, topic_id)
+        save_topics(store)
     return {"deleted": topic_id}
 
 
 def _handle_dismiss_video(params: dict) -> dict:
     video_id = params["video_id"]
-    store = load_topics()
-    dismiss_video(store, video_id)
-    save_topics(store)
+    with _topics_lock:
+        store = load_topics()
+        dismiss_video(store, video_id)
+        save_topics(store)
     return {"dismissed": video_id}
 
 
@@ -694,26 +716,32 @@ def _handle_search_topic(params: dict) -> dict:
     if not api_key:
         raise ChunkerError("YouTube API key not configured. Set it in Settings.")
 
-    store = load_topics()
-    topic = next((t for t in store.topics if t.id == topic_id), None)
-    if topic is None:
-        raise ChunkerError(f"Topic not found: {topic_id}")
+    with _topics_lock:
+        store = load_topics()
+        topic = next((t for t in store.topics if t.id == topic_id), None)
+        if topic is None:
+            raise ChunkerError(f"Topic not found: {topic_id}")
+        search_query = topic.search_query
 
     # Use cache if fresh and no specific page requested
     if not page_token:
         cached = get_cached_results(topic_id)
         if cached is not None:
+            with _topics_lock:
+                store = load_topics()
             library = load_library()
             excluded = get_excluded_video_ids(store, library)
             filtered = [r for r in cached["results"] if r["video_id"] not in excluded]
             return {"results": filtered, "next_page_token": cached.get("next_page_token")}
 
-    result = search_youtube_api(topic.search_query, api_key, page_token=page_token)
+    result = search_youtube_api(search_query, api_key, page_token=page_token)
 
     # Cache the raw results
     cache_results(topic_id, result["results"], result["next_page_token"])
 
     # Filter out excluded videos
+    with _topics_lock:
+        store = load_topics()
     library = load_library()
     excluded = get_excluded_video_ids(store, library)
     filtered = [r for r in result["results"] if r["video_id"] not in excluded]
@@ -734,25 +762,27 @@ def _handle_extract_topics(params: dict) -> dict:
 
     extracted = extract_topics_from_titles(titles, api_key, provider=provider, model=model)
 
-    store = load_topics()
-    existing_names = {t.name.lower() for t in store.topics}
-    new_count = 0
-    video_ids = [e.video_id for e in library.queue] + [e.video_id for e in library.downloaded]
+    with _topics_lock:
+        store = load_topics()
+        existing_names = {t.name.lower() for t in store.topics}
+        new_count = 0
+        video_ids = [e.video_id for e in library.queue] + [e.video_id for e in library.downloaded]
 
-    for topic_data in extracted:
-        if topic_data["name"].lower() not in existing_names:
-            add_topic(store, topic_data["name"], topic_data["search_query"], video_ids)
-            existing_names.add(topic_data["name"].lower())
-            new_count += 1
+        for topic_data in extracted:
+            if topic_data["name"].lower() not in existing_names:
+                add_topic(store, topic_data["name"], topic_data["search_query"], video_ids)
+                existing_names.add(topic_data["name"].lower())
+                new_count += 1
 
-    save_topics(store)
-    return {"topics": [asdict(t) for t in store.topics], "new_count": new_count}
+        save_topics(store)
+        return {"topics": [asdict(t) for t in store.topics], "new_count": new_count}
 
 
 def _record_history_for_ids(video_ids: list[str]) -> None:
-    store = load_topics()
-    record_video_history(store, video_ids)
-    save_topics(store)
+    with _topics_lock:
+        store = load_topics()
+        record_video_history(store, video_ids)
+        save_topics(store)
 
 
 def _resolve_topic_provider(settings: dict) -> tuple[str, str, str | None]:
@@ -785,18 +815,19 @@ def _maybe_auto_extract_topics(library) -> None:
     def _run():
         try:
             extracted = extract_topics_from_titles(titles, api_key, provider=provider, model=model)
-            store = load_topics()
-            existing_names = {t.name.lower() for t in store.topics}
-            video_ids = [e.video_id for e in library.queue] + [
-                e.video_id for e in library.downloaded
-            ]
-            for topic_data in extracted:
-                if topic_data["name"].lower() not in existing_names:
-                    add_topic(store, topic_data["name"], topic_data["search_query"], video_ids)
-                    existing_names.add(topic_data["name"].lower())
-            save_topics(store)
+            with _topics_lock:
+                store = load_topics()
+                existing_names = {t.name.lower() for t in store.topics}
+                video_ids = [e.video_id for e in library.queue] + [
+                    e.video_id for e in library.downloaded
+                ]
+                for topic_data in extracted:
+                    if topic_data["name"].lower() not in existing_names:
+                        add_topic(store, topic_data["name"], topic_data["search_query"], video_ids)
+                        existing_names.add(topic_data["name"].lower())
+                save_topics(store)
         except Exception:
-            pass  # best-effort background extraction
+            logging.getLogger(__name__).exception("Auto topic extraction failed")
 
     thread = threading.Thread(target=_run)
     thread.daemon = True

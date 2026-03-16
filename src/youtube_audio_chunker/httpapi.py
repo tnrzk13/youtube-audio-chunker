@@ -10,7 +10,7 @@ from socketserver import ThreadingMixIn, TCPServer
 from typing import Any
 
 from youtube_audio_chunker.errors import ChunkerError
-from youtube_audio_chunker.sidecar import _METHODS, _cancel_event
+from youtube_audio_chunker.sidecar import _ASYNC_METHODS, _METHODS, _cancel_event
 
 DEFAULT_PORT = 8765
 
@@ -56,6 +56,9 @@ class _Handler(BaseHTTPRequestHandler):
         if handler is None:
             self._send_json(404, {"error": f"Unknown method: {method}"})
             return
+
+        if method in _ASYNC_METHODS:
+            _cancel_event.clear()
 
         try:
             result = handler(params)
@@ -114,8 +117,14 @@ def main(port: int = DEFAULT_PORT) -> None:
     from youtube_audio_chunker import pipeline
     from youtube_audio_chunker.pipeline import PipelineCallbacks
 
-    _original_handle_process_queue = _METHODS["process_queue"]
-    _original_handle_transfer_unsynced = _METHODS["transfer_unsynced"]
+    _originals = {
+        name: _METHODS[name]
+        for name in ("process_queue", "transfer_unsynced")
+    }
+
+    # Replace sidecar's _notify_progress with SSE broadcaster for the HTTP server
+    import youtube_audio_chunker.sidecar as _sidecar_mod
+    _sidecar_mod._notify_progress = _broadcast_progress
 
     def _handle_process_queue_with_sse(params: dict) -> dict:
         from youtube_audio_chunker.pipeline import SyncOptions
@@ -153,9 +162,8 @@ def main(port: int = DEFAULT_PORT) -> None:
         pass
     finally:
         server.server_close()
-        # Restore originals
-        _METHODS["process_queue"] = _original_handle_process_queue
-        _METHODS["transfer_unsynced"] = _original_handle_transfer_unsynced
+        for name, handler in _originals.items():
+            _METHODS[name] = handler
 
 
 def _run_with_reload(port: int = DEFAULT_PORT) -> None:
