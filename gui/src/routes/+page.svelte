@@ -3,8 +3,8 @@
 	import AddEpisodeForm from '$lib/components/AddEpisodeForm.svelte';
 	import QueueList from '$lib/components/QueueList.svelte';
 	import DownloadedList from '$lib/components/DownloadedList.svelte';
-	import WatchEpisodeList from '$lib/components/WatchEpisodeList.svelte';
-	import StorageBar from '$lib/components/StorageBar.svelte';
+	import DeviceOnlyList from '$lib/components/DeviceOnlyList.svelte';
+	import GarminStatusStrip from '$lib/components/GarminStatusStrip.svelte';
 	import ProgressPanel from '$lib/components/ProgressPanel.svelte';
 	import SpaceManagementDialog from '$lib/components/SpaceManagementDialog.svelte';
 	import { getLibrary, refreshLibrary, processQueue } from '$lib/stores/library.svelte';
@@ -90,42 +90,21 @@
 	</div>
 </header>
 
+<GarminStatusStrip status={garmin.data} />
+
 <main class="dashboard">
-	<section class="column">
-		<div class="column-header">
-			<h2>Queue ({library.data.queue.length})</h2>
-		</div>
-		<AddEpisodeForm />
-		<div class="column-scroll">
-			<QueueList entries={library.data.queue} />
-		</div>
-	</section>
-
-	<span class="flow-arrow">{'\u2192'}</span>
-
-	<section class="column">
-		<div class="column-header">
-			<h2>Local ({library.data.downloaded.length})</h2>
-		</div>
-		<div class="column-scroll">
-			<DownloadedList episodes={library.data.downloaded} />
-		</div>
-	</section>
-
-	<span class="flow-arrow">{'\u2192'}</span>
-
-	<section class="column">
-		<div class="column-header">
-			<h2>Watch</h2>
-			<span class="status-dot" class:connected={garmin.data.connected}></span>
-		</div>
-		<StorageBar status={garmin.data} />
-		<div class="column-scroll">
-			<WatchEpisodeList episodes={garmin.data.episodes} connected={garmin.data.connected} />
-		</div>
-	</section>
+	<AddEpisodeForm />
+	<div class="episode-scroll">
+		<QueueList entries={library.data.queue} />
+		<DownloadedList episodes={library.data.downloaded} />
+		{#if garmin.data.connected}
+			<DeviceOnlyList
+				garminEpisodes={garmin.data.episodes}
+				downloadedEpisodes={library.data.downloaded}
+			/>
+		{/if}
+	</div>
 </main>
-
 
 <ProgressPanel />
 <SpaceManagementDialog />
@@ -135,7 +114,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.5rem 1rem;
+		padding: 0.5rem max(1rem, calc((100% - 700px) / 2));
 		box-shadow: var(--shadow-toolbar);
 		background: var(--color-bg-panel);
 		flex-shrink: 0;
@@ -187,59 +166,19 @@
 		background: var(--color-bg-hover);
 	}
 	.dashboard {
-		display: grid;
-		grid-template-columns: 1fr auto 1fr auto 1fr;
-		gap: 0;
-		flex: 1;
-		overflow: hidden;
-	}
-	.flow-arrow {
-		display: flex;
-		align-items: center;
-		color: var(--color-border-light);
-		font-size: var(--font-size-lg);
-		padding: 0 0.15rem;
-		user-select: none;
-	}
-	.column {
 		display: flex;
 		flex-direction: column;
-		box-shadow: var(--shadow-column);
-		background: var(--color-bg-panel);
+		flex: 1;
 		overflow: hidden;
-	}
-	.column:last-child {
-		box-shadow: none;
-	}
-	.column-header {
-		display: flex;
+		background: var(--color-bg-panel);
 		align-items: center;
-		gap: 0.4rem;
-		padding: 0.5rem 0.75rem;
-		border-bottom: 1px solid var(--color-border-subtle);
-		background: var(--color-bg-page);
-		flex-shrink: 0;
 	}
-	.column-header h2 {
-		font-size: var(--font-size-base);
-		font-weight: 600;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--color-text-secondary);
+	.dashboard > :global(*) {
+		width: 100%;
+		max-width: 700px;
 	}
-	.column-scroll {
+	.episode-scroll {
 		flex: 1;
 		overflow-y: auto;
-	}
-	.status-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: var(--radius-full);
-		background: var(--color-border-light);
-		transition: background 0.15s;
-	}
-	.status-dot.connected {
-		background: var(--color-success);
 	}
 </style>
