@@ -214,3 +214,101 @@ pub async fn list_channel_videos(
         .call("list_channel_videos", params)
         .await
 }
+
+#[tauri::command]
+pub async fn list_subscriptions(
+    sidecar: State<'_, ManagedSidecar>,
+    offset: Option<u32>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "offset": offset.unwrap_or(0) });
+    sidecar.lock().await.call("list_subscriptions", params).await
+}
+
+#[tauri::command]
+pub async fn list_home_feed(
+    sidecar: State<'_, ManagedSidecar>,
+    offset: Option<u32>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "offset": offset.unwrap_or(0) });
+    sidecar.lock().await.call("list_home_feed", params).await
+}
+
+#[tauri::command]
+pub async fn list_liked_videos(
+    sidecar: State<'_, ManagedSidecar>,
+    offset: Option<u32>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "offset": offset.unwrap_or(0) });
+    sidecar
+        .lock()
+        .await
+        .call("list_liked_videos", params)
+        .await
+}
+
+#[tauri::command]
+pub async fn list_playlists(
+    sidecar: State<'_, ManagedSidecar>,
+) -> Result<Value, SidecarError> {
+    sidecar
+        .lock()
+        .await
+        .call("list_playlists", Value::Null)
+        .await
+}
+
+#[tauri::command]
+pub async fn list_playlist_videos(
+    sidecar: State<'_, ManagedSidecar>,
+    playlist_id: String,
+    offset: Option<u32>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "playlist_id": playlist_id, "offset": offset.unwrap_or(0) });
+    sidecar
+        .lock()
+        .await
+        .call("list_playlist_videos", params)
+        .await
+}
+
+#[tauri::command]
+pub async fn detect_browser(
+    sidecar: State<'_, ManagedSidecar>,
+) -> Result<Value, SidecarError> {
+    sidecar
+        .lock()
+        .await
+        .call("detect_browser", Value::Null)
+        .await
+}
+
+#[tauri::command]
+pub async fn connect_cookies(
+    sidecar: State<'_, ManagedSidecar>,
+    browser: Option<String>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "browser": browser });
+    sidecar.lock().await.call("connect_cookies", params).await
+}
+
+#[tauri::command]
+pub async fn get_auth_status(
+    sidecar: State<'_, ManagedSidecar>,
+) -> Result<Value, SidecarError> {
+    sidecar
+        .lock()
+        .await
+        .call("get_auth_status", Value::Null)
+        .await
+}
+
+#[tauri::command]
+pub async fn disconnect_auth(
+    sidecar: State<'_, ManagedSidecar>,
+) -> Result<Value, SidecarError> {
+    sidecar
+        .lock()
+        .await
+        .call("disconnect_auth", Value::Null)
+        .await
+}
