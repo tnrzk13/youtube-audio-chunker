@@ -1,0 +1,98 @@
+"""Extract topic themes from video titles using an LLM provider."""
+
+from __future__ import annotations
+
+import json
+import logging
+
+try:
+    import anthropic
+except ImportError:
+    anthropic = None  # type: ignore[assignment]
+
+try:
+    import openai
+except ImportError:
+    openai = None  # type: ignore[assignment]
+
+log = logging.getLogger(__name__)
+
+_EXTRACTION_PROMPT = """\
+Analyze these YouTube video titles and extract 2-5 distinct topic themes.
+For each topic, provide a short name and a YouTube search query that would
+find similar videos from any channel.
+
+Video titles:
+{titles}
+
+Respond with ONLY a JSON array. Each element must have:
+- "name": short topic name (2-4 words)
+- "search_query": YouTube search query to find similar videos (3-6 words)
+
+Example: [{{"name": "predictive history", "search_query": "predictive history documentary"}}]
+"""
+
+
+_DEFAULT_MODELS = {
+    "anthropic": "claude-haiku-4-5-20251001",
+    "openai": "gpt-4o-mini",
+}
+
+
+def extract_topics_from_titles(
+    titles: list[str],
+    api_key: str,
+    provider: str = "anthropic",
+    model: str | None = None,
+) -> list[dict]:
+    if not titles:
+        return []
+
+    resolved_model = model or _DEFAULT_MODELS.get(provider, "")
+    prompt = _EXTRACTION_PROMPT.format(
+        titles="\n".join(f"- {t}" for t in titles)
+    )
+
+    try:
+        if provider == "openai":
+            raw = _call_openai(api_key, prompt, resolved_model)
+        else:
+            raw = _call_anthropic(api_key, prompt, resolved_model)
+        return _parse_topics_response(raw)
+    except Exception:
+        log.exception("Topic extraction failed (provider=%s)", provider)
+        return []
+
+
+def _call_anthropic(api_key: str, prompt: str, model: str) -> str:
+    client = anthropic.Anthropic(api_key=api_key)
+    response = client.messages.create(
+        model=model,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text
+
+
+def _call_openai(api_key: str, prompt: str, model: str) -> str:
+    client = openai.OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model=model,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content
+
+
+def _parse_topics_response(raw: str) -> list[dict]:
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, list):
+            return []
+        return [
+            {"name": item["name"], "search_query": item["search_query"]}
+            for item in data
+            if isinstance(item, dict) and "name" in item and "search_query" in item
+        ]
+    except (json.JSONDecodeError, KeyError):
+        return []

@@ -17,8 +17,29 @@
 	let saving = $state(false);
 	let saved = $state(false);
 
+	let topicProvider = $state('anthropic');
+	let topicModel = $state('');
 	let anthropicApiKey = $state('');
+	let openaiApiKey = $state('');
 	let youtubeApiKey = $state('');
+
+	const ANTHROPIC_MODELS = [
+		{ value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest, cheapest)' },
+		{ value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+		{ value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
+	];
+	const OPENAI_MODELS = [
+		{ value: 'gpt-4o-mini', label: 'GPT-4o Mini (fastest, cheapest)' },
+		{ value: 'gpt-4o', label: 'GPT-4o' },
+		{ value: 'gpt-4.1', label: 'GPT-4.1' },
+		{ value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+	];
+	let availableModels = $derived(topicProvider === 'openai' ? OPENAI_MODELS : ANTHROPIC_MODELS);
+	let defaultModel = $derived(topicProvider === 'openai' ? 'gpt-4o-mini' : 'claude-haiku-4-5-20251001');
+
+	function handleProviderChange() {
+		topicModel = '';
+	}
 
 	let authStatus = $state<AuthStatus>({ method: null, detail: null });
 	let browserOverride = $state('');
@@ -34,7 +55,10 @@
 		searchLayoutWidthPercent = settings.data.search_layout_width_percent ?? 75;
 		searchLayoutSplitPercent = settings.data.search_layout_split_percent ?? 50;
 		browserOverride = settings.data.youtube_cookies_browser ?? '';
+		topicProvider = settings.data.topic_provider ?? 'anthropic';
+		topicModel = settings.data.topic_model ?? '';
 		anthropicApiKey = settings.data.anthropic_api_key ?? '';
+		openaiApiKey = settings.data.openai_api_key ?? '';
 		youtubeApiKey = settings.data.youtube_api_key ?? '';
 		try {
 			authStatus = await getAuthStatus();
@@ -87,7 +111,10 @@
 			keep_full: keepFull,
 			search_layout_width_percent: searchLayoutWidthPercent,
 			search_layout_split_percent: searchLayoutSplitPercent,
+			topic_provider: topicProvider,
+			topic_model: topicModel || undefined,
 			anthropic_api_key: anthropicApiKey || undefined,
+			openai_api_key: openaiApiKey || undefined,
 			youtube_api_key: youtubeApiKey || undefined,
 			...youtubeFields,
 		});
@@ -159,10 +186,37 @@
 	<h2 class="section-heading">API Keys (Discover)</h2>
 
 	<div class="field">
-		<label for="anthropic-key">Anthropic API key</label>
-		<input id="anthropic-key" type="password" bind:value={anthropicApiKey} placeholder="sk-ant-..." autocomplete="off" />
-		<p class="hint">Used to auto-detect topics from your library. Get one at console.anthropic.com.</p>
+		<label for="topic-provider">Topic extraction provider</label>
+		<select id="topic-provider" bind:value={topicProvider} onchange={handleProviderChange}>
+			<option value="anthropic">Anthropic (Claude)</option>
+			<option value="openai">OpenAI (GPT)</option>
+		</select>
+		<p class="hint">Which LLM provider to use for auto-detecting topics from your library.</p>
 	</div>
+
+	<div class="field">
+		<label for="topic-model">Model</label>
+		<select id="topic-model" bind:value={topicModel}>
+			<option value="">Default ({availableModels[0].label})</option>
+			{#each availableModels as model}
+				<option value={model.value}>{model.label}</option>
+			{/each}
+		</select>
+	</div>
+
+	{#if topicProvider === 'anthropic'}
+		<div class="field">
+			<label for="anthropic-key">Anthropic API key</label>
+			<input id="anthropic-key" type="password" bind:value={anthropicApiKey} placeholder="sk-ant-..." autocomplete="off" />
+			<p class="hint">Get one at console.anthropic.com.</p>
+		</div>
+	{:else}
+		<div class="field">
+			<label for="openai-key">OpenAI API key</label>
+			<input id="openai-key" type="password" bind:value={openaiApiKey} placeholder="sk-..." autocomplete="off" />
+			<p class="hint">Get one at platform.openai.com.</p>
+		</div>
+	{/if}
 
 	<div class="field">
 		<label for="youtube-key">YouTube Data API key</label>

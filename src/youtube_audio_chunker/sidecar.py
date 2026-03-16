@@ -695,16 +695,16 @@ def _handle_search_topic(params: dict) -> dict:
 
 def _handle_extract_topics(params: dict) -> dict:
     settings = _load_settings()
-    api_key = settings.get("anthropic_api_key", "")
+    provider, api_key, model = _resolve_topic_provider(settings)
     if not api_key:
-        raise ChunkerError("Anthropic API key not configured. Set it in Settings.")
+        raise ChunkerError("No API key configured for topic extraction. Set one in Settings.")
 
     library = load_library()
     titles = [e.title for e in library.queue] + [e.title for e in library.downloaded]
     if not titles:
         return {"topics": [], "new_count": 0}
 
-    extracted = extract_topics_from_titles(titles, api_key)
+    extracted = extract_topics_from_titles(titles, api_key, provider=provider, model=model)
 
     store = load_topics()
     existing_names = {t.name.lower() for t in store.topics}
@@ -727,10 +727,26 @@ def _record_history_for_ids(video_ids: list[str]) -> None:
     save_topics(store)
 
 
+def _resolve_topic_provider(settings: dict) -> tuple[str, str, str | None]:
+    """Return (provider, api_key, model) based on settings."""
+    provider = settings.get("topic_provider", "")
+    model = settings.get("topic_model") or None
+    if provider == "openai" and settings.get("openai_api_key"):
+        return "openai", settings["openai_api_key"], model
+    if provider == "anthropic" and settings.get("anthropic_api_key"):
+        return "anthropic", settings["anthropic_api_key"], model
+    # Fallback: use whichever key is available
+    if settings.get("anthropic_api_key"):
+        return "anthropic", settings["anthropic_api_key"], model
+    if settings.get("openai_api_key"):
+        return "openai", settings["openai_api_key"], model
+    return "anthropic", "", model
+
+
 def _maybe_auto_extract_topics(library) -> None:
-    """Spawn background topic extraction if Anthropic key is configured."""
+    """Spawn background topic extraction if an API key is configured."""
     settings = _load_settings()
-    api_key = settings.get("anthropic_api_key", "")
+    provider, api_key, model = _resolve_topic_provider(settings)
     if not api_key:
         return
 
@@ -740,7 +756,7 @@ def _maybe_auto_extract_topics(library) -> None:
 
     def _run():
         try:
-            extracted = extract_topics_from_titles(titles, api_key)
+            extracted = extract_topics_from_titles(titles, api_key, provider=provider, model=model)
             store = load_topics()
             existing_names = {t.name.lower() for t in store.topics}
             video_ids = [e.video_id for e in library.queue] + [
