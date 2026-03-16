@@ -80,6 +80,7 @@ _ASYNC_METHODS = {
     "process_queue", "transfer_unsynced", "transfer_episode", "resync_episode",
     "list_subscriptions", "list_home_feed", "list_liked_videos",
     "list_playlists", "list_playlist_videos",
+    "connect_cookies", "detect_browser",
 }
 
 
