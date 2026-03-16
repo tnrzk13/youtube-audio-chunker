@@ -9,6 +9,7 @@ from youtube_audio_chunker.library import (
     QueueEntry,
 )
 from youtube_audio_chunker.sidecar import (
+    _run_handler,
     _handle_add_to_queue,
     _handle_connect_cookies,
     _handle_create_topic,
@@ -635,3 +636,30 @@ class TestConcurrentTopicAccess:
 
         assert errors == []
         assert mock_save.call_count == 2
+
+
+class TestRunHandlerErrorSanitization:
+    @patch(f"{SIDECAR_MODULE}._write_error")
+    def test_generic_exception_sends_generic_message(self, mock_write_error):
+        def bad_handler(params):
+            raise RuntimeError("secret traceback info")
+
+        _run_handler(bad_handler, {}, request_id=1)
+
+        mock_write_error.assert_called_once()
+        _, code, message = mock_write_error.call_args[0]
+        assert "secret traceback" not in message
+        assert message == "Internal error"
+
+    @patch(f"{SIDECAR_MODULE}._write_error")
+    def test_chunker_error_still_returns_message(self, mock_write_error):
+        from youtube_audio_chunker.errors import ChunkerError
+
+        def chunker_handler(params):
+            raise ChunkerError("User-facing message")
+
+        _run_handler(chunker_handler, {}, request_id=1)
+
+        mock_write_error.assert_called_once()
+        _, code, message = mock_write_error.call_args[0]
+        assert message == "User-facing message"

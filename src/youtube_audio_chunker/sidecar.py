@@ -8,7 +8,6 @@ import os
 import shutil
 import sys
 import threading
-import traceback
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -94,6 +93,8 @@ ERROR_CODES = {
 }
 
 PARSE_ERROR = -32700
+
+log = logging.getLogger(__name__)
 METHOD_NOT_FOUND = -32601
 INTERNAL_ERROR = -32603
 
@@ -190,8 +191,9 @@ def _run_handler(handler, params: dict, request_id: Any) -> None:
         if request_id is not None:
             _write_error(request_id, code, str(exc))
     except Exception:
+        log.exception("Unhandled error in handler")
         if request_id is not None:
-            _write_error(request_id, INTERNAL_ERROR, traceback.format_exc())
+            _write_error(request_id, INTERNAL_ERROR, "Internal error")
 
 
 def _is_cancelled() -> bool:
