@@ -10,16 +10,23 @@ Two auth providers, one interface. Both produce authenticated yt-dlp calls that 
 
 - yt-dlp's `--cookies-from-browser` flag extracts cookies from a locally installed browser
 - Auto-detect order: Chrome > Firefox > Chromium > Edge > Brave
+- If no browser with YouTube cookies is found, report "No browser with YouTube cookies detected - log in to YouTube in your browser and retry"
 - Store detected browser name in `settings.json` to avoid re-detection
 - User can override browser choice in Settings
 
 ### YouTube Data API v3 (portable path)
 
-- OAuth 2.0 flow - app opens system browser for Google sign-in, receives auth code
-- Store refresh token in `settings.json`
+- OAuth 2.0 flow using a local redirect server for auth code capture:
+  1. User enters their Google Cloud OAuth client ID and secret in the auth modal
+  2. Python sidecar starts a temporary local HTTP server on a random port (e.g. `http://127.0.0.1:<port>/oauth/callback`)
+  3. App opens the system browser to Google's OAuth consent screen with the local redirect URI
+  4. After user grants access, Google redirects to the local server which captures the auth code
+  5. Sidecar exchanges the auth code for access + refresh tokens and shuts down the local server
+- Store refresh token in a separate `auth.json` file alongside `settings.json` (not inside `settings.json`) to avoid clobbering when the Settings page saves user preferences
 - Users provide their own Google Cloud OAuth client ID and secret (no shipped credentials)
 - Used for listing subscriptions, liked videos, playlists via the official API
 - Downloads still go through yt-dlp (using OAuth token or cookies for auth)
+- Security note: `auth.json` stores OAuth tokens in plaintext on disk. Acceptable for a local desktop app where users provide their own credentials, but worth noting.
 
 ### Auth Trigger
 
@@ -47,11 +54,12 @@ Bottom of sidebar: "Connect YouTube" link showing auth status.
 
 ### Layout Behavior
 
-- Sidebar is always visible on screens >= 750px
+- The sidebar sits outside the `.dashboard` container in a new wrapping flex container (`app-layout`), so the dashboard's internal two-column logic is unaffected
+- Sidebar is always visible on screens >= 900px (raised from 750px to accommodate sidebar + two-column content)
 - Selecting a feed replaces the content in the main area (search input + results area)
 - Queue and Downloaded lists remain visible below the feed content
-- The existing two-column layout still activates when search results are showing
-- Below 750px: sidebar collapses to a hamburger menu icon in the toolbar
+- The existing two-column layout still activates within the dashboard when search results are showing (at the existing 750px breakpoint, calculated against the dashboard width minus sidebar)
+- Below 900px: sidebar collapses to a hamburger menu icon in the toolbar, and the full width is available for the dashboard (preserving the existing 750px two-column behavior)
 
 ### Playlists View
 
@@ -90,7 +98,7 @@ All calls include `cookiesfrombrowser` in yt-dlp options.
 
 | Feed | API Endpoint |
 |------|-------------|
-| Subscriptions | `subscriptions.list` + `activities.list` (list channels, then recent uploads) |
+| Subscriptions | `subscriptions.list` to get channel IDs, then `playlistItems.list` on each channel's "uploads" playlist (playlist ID = `UU` + channel ID minus `UC` prefix) |
 | Home | Not available - disabled when using OAuth only |
 | Liked | `videos.list` with `myRating=like` |
 | Playlists | `playlists.list(mine=true)` + `playlistItems.list` |
@@ -102,6 +110,10 @@ Each feed handler checks `settings.youtube_auth_method`:
 - `"oauth"`: use YouTube Data API v3 via `google-api-python-client`
 - Home feed with OAuth only: return an error indicating browser cookies are required
 
+### Execution Model
+
+All new feed-listing sidecar methods run asynchronously (added to `_ASYNC_METHODS` in `sidecar.py`). yt-dlp feed extraction can take several seconds, and blocking the sidecar's main loop would prevent cancellation or other requests from being processed. This matches how `process_queue` and `transfer_unsynced` already work.
+
 ### Pagination
 
 Same offset-based pattern as existing search: 10 results per page, infinite scroll via sentinel intersection observer.
@@ -110,15 +122,28 @@ Same offset-based pattern as existing search: 10 results per page, infinite scro
 
 ### New Fields in `settings.json`
 
+Only the auth method and browser preference live in `settings.json` (safe for the Settings page to overwrite):
+
 ```json
 {
   "youtube_auth_method": "cookies | oauth | null",
-  "youtube_cookies_browser": "chrome | firefox | chromium | edge | brave | null",
+  "youtube_cookies_browser": "chrome | firefox | chromium | edge | brave | null"
+}
+```
+
+### Separate `auth.json` File
+
+OAuth credentials live in `~/.youtube-audio-chunker/auth.json`, separate from `settings.json`, to avoid clobbering when the Settings page does a full save:
+
+```json
+{
   "youtube_oauth_refresh_token": "...",
   "youtube_oauth_client_id": "...",
   "youtube_oauth_client_secret": "..."
 }
 ```
+
+The auth module reads/writes `auth.json` directly. The Settings page reads auth status via `get_auth_status()` and never touches `auth.json`.
 
 ### Settings Page
 
@@ -172,6 +197,7 @@ New commands mirroring each sidecar method:
 | Empty feed | "No videos found" with contextual hint |
 | API quota exceeded | "YouTube API quota reached - try browser cookies instead" |
 | Network offline | "No internet connection" |
+| No browser detected | "No browser with YouTube cookies detected - log in to YouTube in your browser and retry" |
 | yt-dlp rate limited | Backoff and retry (3 attempts), then error |
 
 ## New Dependencies
@@ -194,9 +220,7 @@ New commands mirroring each sidecar method:
 - `gui/src/routes/settings/+page.svelte` - Add YouTube Account section
 - `gui/src/lib/stores/library.svelte.ts` - Add feed fetch methods
 - `gui/src/lib/types/index.ts` - Add Playlist, FeedView, AuthStatus types
-- `gui/src/lib/backend.ts` - Add new backend call wrappers (if needed)
 - `gui/src-tauri/src/commands.rs` - Add new Tauri commands
 - `gui/src-tauri/src/lib.rs` - Register new commands
-- `src/youtube_audio_chunker/sidecar.py` - Add feed handler methods
+- `src/youtube_audio_chunker/sidecar.py` - Add feed handler methods and register in `_ASYNC_METHODS`
 - `src/youtube_audio_chunker/downloader.py` - Add feed extraction functions (cookies path)
-- `src/youtube_audio_chunker/settings.py` - Add auth-related settings fields
