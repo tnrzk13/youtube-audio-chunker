@@ -3,12 +3,13 @@
 	import { getSettings, refreshSettings, saveSettings } from '$lib/stores/settings.svelte';
 	import { getTheme, toggleTheme } from '$lib/stores/theme.svelte';
 	import { getAuthStatus, disconnectAuth, connectCookies } from '$lib/stores/library.svelte';
-	import type { AuthStatus } from '$lib/types';
+	import ContentTypeSelect from '$lib/components/ContentTypeSelect.svelte';
+	import type { AuthStatus, ContentType } from '$lib/types';
 
 	const settings = getSettings();
 	const theme = getTheme();
 
-	let defaultContentType = $state('podcast');
+	let defaultContentType = $state<ContentType>('podcast');
 	let chunkDuration = $state(300);
 	let defaultArtist = $state('');
 	let keepFull = $state(false);
@@ -49,7 +50,7 @@
 
 	onMount(async () => {
 		await refreshSettings();
-		defaultContentType = settings.data.default_content_type ?? 'podcast';
+		defaultContentType = (settings.data.default_content_type as ContentType) ?? 'podcast';
 		chunkDuration = settings.data.chunk_duration_seconds ?? 300;
 		defaultArtist = settings.data.default_artist ?? '';
 		keepFull = settings.data.keep_full ?? false;
@@ -137,11 +138,7 @@
 <main class="settings">
 	<div class="field">
 		<label for="default-content-type">Default content type</label>
-		<select id="default-content-type" bind:value={defaultContentType}>
-			<option value="podcast">Podcast</option>
-			<option value="music">Music</option>
-			<option value="audiobook">Audiobook</option>
-		</select>
+		<ContentTypeSelect id="default-content-type" bind:value={defaultContentType} />
 	</div>
 
 	<div class="field">

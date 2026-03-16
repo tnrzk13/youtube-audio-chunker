@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ContentTypeSelect from './ContentTypeSelect.svelte';
 	import type { ContentType } from '$lib/types';
 
 	let {
@@ -39,11 +40,7 @@
 	{/if}
 	<label class="edit-field">
 		<span class="edit-label">Type</span>
-		<select bind:value={contentType}>
-			<option value="music">Music</option>
-			<option value="podcast">Podcast</option>
-			<option value="audiobook">Audiobook</option>
-		</select>
+		<ContentTypeSelect bind:value={contentType} />
 	</label>
 	<div class="edit-actions">
 		<button
@@ -78,8 +75,7 @@
 		color: var(--color-text-hint);
 		min-width: 3rem;
 	}
-	.edit-card input,
-	.edit-card select {
+	.edit-card input {
 		flex: 1;
 		font-family: inherit;
 		font-size: var(--font-size-md);
@@ -89,8 +85,7 @@
 		background: var(--color-bg-panel);
 		transition: border-color 0.15s;
 	}
-	.edit-card input:focus,
-	.edit-card select:focus {
+	.edit-card input:focus {
 		outline: none;
 		border-color: var(--color-primary);
 	}

@@ -3,6 +3,7 @@
 	import { addToQueue, startProcessing, searchYouTube, listChannelVideos, getLibrary } from '$lib/stores/library.svelte';
 	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
 	import { getGarminStatus } from '$lib/stores/garmin.svelte';
+	import ContentTypeSelect from './ContentTypeSelect.svelte';
 	import type { ContentType, SearchResult, ChannelVideo } from '$lib/types';
 	import { formatDuration } from '$lib/format';
 
@@ -250,11 +251,7 @@
 		onkeydown={handleKeydown}
 	></textarea>
 	<div class="form-row">
-		<select bind:value={contentType} disabled={submitting || searching}>
-			<option value="music">Music</option>
-			<option value="podcast">Podcast</option>
-			<option value="audiobook">Audiobook</option>
-		</select>
+		<ContentTypeSelect bind:value={contentType} disabled={submitting || searching} />
 		<button class="btn btn-primary" type="submit" disabled={buttonDisabled}>
 			{buttonLabel}
 		</button>
@@ -399,18 +396,6 @@
 		display: flex;
 		gap: 0.4rem;
 		margin-top: 0.4rem;
-	}
-	select {
-		font-size: var(--font-size-md);
-		padding: 0.3rem 0.4rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: var(--color-bg-panel);
-		transition: border-color 0.15s;
-	}
-	select:focus {
-		outline: none;
-		border-color: var(--color-primary);
 	}
 	.error {
 		font-size: var(--font-size-sm);

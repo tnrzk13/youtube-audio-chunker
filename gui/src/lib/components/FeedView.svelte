@@ -3,6 +3,7 @@
 	import { addToQueue, startProcessing, getLibrary } from '$lib/stores/library.svelte';
 	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
 	import { getGarminStatus } from '$lib/stores/garmin.svelte';
+	import ContentTypeSelect from './ContentTypeSelect.svelte';
 	import type { ContentType, SearchResult, AuthStatus } from '$lib/types';
 	import { formatDuration } from '$lib/format';
 
@@ -135,11 +136,7 @@
 		<span class="feed-title">{title}</span>
 		{#if selectedUrls.size > 0}
 			<div class="feed-actions">
-				<select bind:value={contentType} disabled={submitting}>
-					<option value="music">Music</option>
-					<option value="podcast">Podcast</option>
-					<option value="audiobook">Audiobook</option>
-				</select>
+				<ContentTypeSelect bind:value={contentType} disabled={submitting} />
 				<button class="btn btn-primary" onclick={handleAddSelected} disabled={submitting}>
 					Add ({selectedUrls.size})
 				</button>
@@ -227,13 +224,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.3rem;
-	}
-	.feed-actions select {
-		font-size: var(--font-size-sm);
-		padding: 0.2rem 0.3rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: var(--color-bg-panel);
 	}
 	.feed-error {
 		font-size: var(--font-size-sm);
