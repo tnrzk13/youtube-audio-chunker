@@ -54,7 +54,9 @@
 
   /* Card sync status */
   --color-card-synced: var(--color-success);
+  --color-card-synced-bg: rgba(67, 160, 71, 0.06);
   --color-card-queued: var(--color-primary);
+  --color-card-queued-bg: rgba(25, 118, 210, 0.06);
 
   /* Radii */
   --radius-sm: 4px;
@@ -135,6 +137,10 @@
   --color-bar-track: #333;
   --color-bar-fill: #666;
   --color-bar-other: #8a7340;
+
+  /* Card sync status */
+  --color-card-synced-bg: rgba(102, 187, 106, 0.08);
+  --color-card-queued-bg: rgba(100, 181, 246, 0.08);
 
   /* Shadows */
   --shadow-dialog: 0 4px 24px rgba(0, 0, 0, 0.5);
@@ -220,7 +226,9 @@
 
 .card-status-synced {
   border-left: 3px solid var(--color-card-synced);
+  background: var(--color-card-synced-bg);
 }
 .card-status-queued {
   border-left: 3px solid var(--color-card-queued);
+  background: var(--color-card-queued-bg);
 }
