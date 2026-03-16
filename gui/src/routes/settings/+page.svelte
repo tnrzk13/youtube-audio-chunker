@@ -37,7 +37,7 @@
 </script>
 
 <header class="toolbar">
-	<a href="/" class="back-link">Back</a>
+	<a href="/" class="toolbar-icon">{'\u2190'}</a>
 	<h1>Settings</h1>
 	<button class="theme-toggle" onclick={toggleTheme}>
 		{theme.isDark ? '\u2600' : '\u263E'}
@@ -110,16 +110,21 @@
 		font-weight: 600;
 		margin: 0;
 	}
-	.back-link {
-		font-size: var(--font-size-md);
-		color: var(--color-primary);
+	.toolbar-icon {
+		display: flex;
+		align-items: center;
 		text-decoration: none;
+		background: none;
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		padding: 0.15rem 0.5rem;
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		font-size: var(--font-size-lg);
+		padding: 0.45rem 0.5rem;
+		line-height: 1;
+		color: inherit;
 		transition: all 0.15s;
 	}
-	.back-link:hover {
+	.toolbar-icon:hover {
 		background: var(--color-bg-hover);
 	}
 	.settings {
