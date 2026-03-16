@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(git *)",
       "Bash(npm *)",
       "Bash(npx *)",
       "Bash(node *)",
@@ -9,17 +10,10 @@
       "Bash(python *)",
       "Bash(python3 *)",
       "Bash(pip *)",
+      "Bash(pip install *)",
       "Bash(pytest *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git status *)",
-      "Bash(git diff *)",
-      "Bash(git log *)",
-      "Bash(git branch *)",
-      "Bash(git checkout *)",
-      "Bash(git stash *)",
-      "Bash(git merge *)",
-      "Bash(git rebase *)",
+      "Bash(kill *)",
+      "Bash(curl *)",
       "Bash(ls *)",
       "Bash(pwd *)",
       "Bash(mkdir *)",
