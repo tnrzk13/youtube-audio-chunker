@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import queue
 import threading
 from http.server import BaseHTTPRequestHandler
@@ -12,7 +13,10 @@ from typing import Any
 from youtube_audio_chunker.errors import ChunkerError
 from youtube_audio_chunker.sidecar import _ASYNC_METHODS, _METHODS, _cancel_event
 
+log = logging.getLogger(__name__)
+
 DEFAULT_PORT = 8765
+ALLOWED_ORIGIN = "http://localhost:5173"
 
 _sse_clients: list[queue.Queue] = []
 _sse_lock = threading.Lock()
@@ -65,8 +69,9 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"result": result})
         except ChunkerError as exc:
             self._send_json(500, {"error": str(exc)})
-        except Exception as exc:
-            self._send_json(500, {"error": str(exc)})
+        except Exception:
+            log.exception("Unhandled error in RPC handler")
+            self._send_json(500, {"error": "Internal server error"})
 
     def do_GET(self):
         if self.path != "/events":
@@ -96,7 +101,7 @@ class _Handler(BaseHTTPRequestHandler):
     def _send_cors_headers(self, code: int, content_type: str = "application/json"):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
