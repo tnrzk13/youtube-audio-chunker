@@ -26,16 +26,32 @@ Both columns are equal width (50/50 split).
 - **Single to two-column:** Search results are returned and displayed
 - **Two-column to single:** User clicks the close (X) button on the search results panel
 
-No auto-dismiss on adding items. Close button is the only way to return to single column.
+No auto-dismiss on adding items. Close button is the only way to return to single column. Closing from channel-browse view also collapses to single column (same as dismissing search results).
 
 ### Responsive Behavior
 
 When the viewport is too narrow to fit two comfortable columns side by side, fall back to the current stacked single-column layout. The breakpoint should be determined by the minimum comfortable column width (roughly 350px per column, so ~750px viewport minimum for two-column mode).
 
+## Implementation Details
+
+### Surfacing search state to the page
+
+`AddEpisodeForm` exposes a bindable `hasResults` prop (`$bindable()`) so `+page.svelte` can read whether search results (or channel videos) are currently displayed. This drives the layout class toggle on `.dashboard`.
+
+### Component structure stays the same
+
+`AddEpisodeForm` continues to own both the search form and the results panel - no extraction needed. In two-column mode, the left column is the entire `AddEpisodeForm` component and the right column is `.episode-scroll`. The split happens at the `+page.svelte` level with a CSS grid or flex wrapper.
+
+### CSS changes
+
+- **`+page.svelte`:** `.dashboard` gets a conditional class (e.g. `.dashboard.two-column`) that switches from single centered column to a two-column flex/grid layout. The `> :global(*)` max-width 700px rule is overridden in two-column mode to allow the wider container.
+- **`AddEpisodeForm.svelte`:** The existing `max-height: 300px` on `.search-results` is removed or overridden in two-column mode so results fill the available column height.
+- **Toolbar:** Stays at its current width/behavior. It already uses responsive padding (`max(1rem, calc((100% - 700px) / 2))`) and does not need to widen with the dashboard since it's a separate element.
+
 ## Components Affected
 
-- `+page.svelte` - Dashboard layout needs conditional two-column CSS
-- `AddEpisodeForm.svelte` - Needs to expose whether search results are visible (may already do this via its results panel rendering)
+- `+page.svelte` - Dashboard layout conditional two-column CSS, reads `hasResults` from AddEpisodeForm
+- `AddEpisodeForm.svelte` - Exposes bindable `hasResults` prop, adjusts search results max-height in two-column mode
 - `app.css` - May need new CSS custom properties for the wider max-width
 
 ## Out of Scope
@@ -44,3 +60,5 @@ When the viewport is too narrow to fit two comfortable columns side by side, fal
 - Remembering column preference across sessions
 - Different column ratios
 - Animation/transition effects between states (can be added later)
+- Tauri minimum window size changes
+- Focus management during layout transition
