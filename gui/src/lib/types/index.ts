@@ -100,3 +100,18 @@ export interface ChannelVideo {
 }
 
 export type ContentType = 'music' | 'podcast' | 'audiobook';
+
+export interface Playlist {
+	playlist_id: string;
+	title: string;
+	video_count: number;
+}
+
+export type FeedView = 'search' | 'subscriptions' | 'home' | 'liked' | 'playlists' | 'playlist-detail';
+
+export interface AuthStatus {
+	method: 'cookies' | 'oauth' | null;
+	detail: string | null;
+	email?: string | null;
+	browser?: string | null;
+}

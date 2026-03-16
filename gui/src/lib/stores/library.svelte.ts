@@ -1,7 +1,7 @@
 import { call } from '$lib/backend';
 import { setActive } from '$lib/stores/progress.svelte';
 import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
-import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates, SearchResult, ChannelVideo } from '$lib/types';
+import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates, SearchResult, ChannelVideo, Playlist, AuthStatus } from '$lib/types';
 
 let library = $state<Library>({ queue: [], downloaded: [] });
 let loading = $state(false);
@@ -122,4 +122,46 @@ export async function searchYouTube(query: string, offset: number = 0): Promise<
 
 export async function listChannelVideos(channelUrl: string, offset: number = 0): Promise<{ channel_name: string; videos: ChannelVideo[] }> {
 	return call<{ channel_name: string; videos: ChannelVideo[] }>('list_channel_videos', { channelUrl, offset });
+}
+
+export async function listSubscriptions(offset: number = 0): Promise<SearchResult[]> {
+	const result = await call<{ results: SearchResult[] }>('list_subscriptions', { offset });
+	return result.results;
+}
+
+export async function listHomeFeed(offset: number = 0): Promise<SearchResult[]> {
+	const result = await call<{ results: SearchResult[] }>('list_home_feed', { offset });
+	return result.results;
+}
+
+export async function listLikedVideos(offset: number = 0): Promise<SearchResult[]> {
+	const result = await call<{ results: SearchResult[] }>('list_liked_videos', { offset });
+	return result.results;
+}
+
+export async function listPlaylists(): Promise<Playlist[]> {
+	const result = await call<{ playlists: Playlist[] }>('list_playlists');
+	return result.playlists;
+}
+
+export async function listPlaylistVideos(playlistId: string, offset: number = 0): Promise<SearchResult[]> {
+	const result = await call<{ results: SearchResult[] }>('list_playlist_videos', { playlistId, offset });
+	return result.results;
+}
+
+export async function detectBrowser(): Promise<string | null> {
+	const result = await call<{ browser: string | null }>('detect_browser');
+	return result.browser;
+}
+
+export async function connectCookies(browser?: string): Promise<{ success: boolean; browser?: string; error?: string }> {
+	return call('connect_cookies', { browser });
+}
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+	return call<AuthStatus>('get_auth_status');
+}
+
+export async function disconnectAuth(): Promise<void> {
+	await call('disconnect_auth');
 }
