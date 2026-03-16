@@ -6,13 +6,19 @@ Built for the Garmin Forerunner 245 Music (and similar watches that play MP3s vi
 
 ## Desktop app
 
-![Screenshot](docs/screenshot.png?v=2)
+| Light | Dark |
+|-------|------|
+| ![Light mode](docs/screenshot.png) | ![Dark mode](docs/screenshot-dark.png) |
 
-A Tauri desktop app provides a three-column dashboard for managing your audio pipeline:
+A Tauri desktop app with a unified episode list for managing your audio pipeline:
 
-- **Queue** - paste YouTube URLs, pick a content type, and add to the queue
-- **Local** - downloaded and chunked episodes stored on disk
-- **Watch** - episodes on the connected Garmin, with storage bar and per-episode delete
+- **Add form** - paste YouTube URLs, pick a content type (music/podcast/audiobook), and queue downloads
+- **Episode list** - all episodes in one view, grouped by content type and show name, with collapsible sections and show groups (state persists across sessions)
+- **Sync status** - color-coded left borders indicate episode state: green = on watch, blue = processing
+- **Garmin status strip** - compact connection indicator with inline storage bar
+- **Device-only episodes** - episodes on the watch but not in the local library appear in a separate section
+
+Editing an episode's metadata (title, show, artist, content type) re-tags the local MP3 files. If the episode is already on the watch, it automatically re-syncs - removing the old copy and transferring the updated files to the correct Garmin folder.
 
 The app includes light/dark theme toggle, real-time progress tracking, configurable settings (chunk duration, default content type, artist name), and space management for the watch.
 
@@ -152,6 +158,16 @@ youtube-audio-chunker list --queued   # URLs waiting to be processed
 youtube-audio-chunker list --local    # Downloaded and chunked locally
 youtube-audio-chunker list --watch    # On the Garmin watch
 ```
+
+#### Edit episode metadata
+
+```bash
+youtube-audio-chunker edit VIDEO_ID --show "New Show"
+youtube-audio-chunker edit VIDEO_ID --artist "New Artist" --title "New Title"
+youtube-audio-chunker edit VIDEO_ID --type podcast
+```
+
+Updates ID3 tags on the local MP3 files. Use `list --local` to find the video ID.
 
 #### Remove episodes
 
