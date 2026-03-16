@@ -88,6 +88,7 @@
 				</div>
 			{/if}
 		{:else}
+			<a class="popover-item" href="/settings">Settings</a>
 			<button class="connect-btn" onclick={onConnectClick}>
 				Connect YouTube
 			</button>
@@ -152,6 +153,9 @@
 		border-top: 1px solid var(--color-border-subtle);
 		padding: 0.5rem 0.75rem;
 		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
 	}
 	.account-card {
 		display: flex;

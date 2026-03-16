@@ -130,25 +130,22 @@
 		>
 			{'\u2630'}
 		</button>
-		<div class="toolbar-title">
-			<h1>youtube-audio-chunker</h1>
-			<span class="toolbar-subtitle">Tested with Garmin Forerunner 245 Music</span>
-		</div>
+		<h1>youtube-audio-chunker</h1>
 	</div>
 	<div class="toolbar-actions">
 		<button
 			onclick={handleSyncAll}
 			disabled={library.processing || library.data.queue.length === 0}
 		>
-			{library.processing ? 'Syncing...' : 'Sync All'}
+			{library.processing ? 'Processing...' : 'Process Queue'}
 		</button>
 		<button
 			onclick={handleTransfer}
 			disabled={transferring || unsyncedCount === 0}
 		>
-			{transferring ? 'Transferring...' : `Transfer Unsynced (${unsyncedCount})`}
+			{transferring ? 'Transferring...' : `Transfer to Watch (${unsyncedCount})`}
 		</button>
-		<button class="theme-toggle" onclick={toggleTheme}>
+		<button class="theme-toggle" onclick={toggleTheme} title={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
 			{theme.isDark ? '\u2600' : '\u263E'}
 		</button>
 	</div>
@@ -215,8 +212,15 @@
 		{/if}
 
 		<div class="episode-scroll">
-			<QueueList entries={library.data.queue} />
-			<DownloadedList episodes={library.data.downloaded} />
+			{#if library.data.queue.length === 0 && library.data.downloaded.length === 0}
+				<div class="empty">
+					<p>No episodes yet</p>
+					<p>Add a YouTube URL or search to get started</p>
+				</div>
+			{:else}
+				<QueueList entries={library.data.queue} />
+				<DownloadedList episodes={library.data.downloaded} />
+			{/if}
 			{#if garmin.data.connected}
 				<DeviceOnlyList
 					garminEpisodes={garmin.data.episodes}
@@ -274,18 +278,10 @@
 			display: none;
 		}
 	}
-	.toolbar-title {
-		display: flex;
-		flex-direction: column;
-	}
 	h1 {
 		font-size: var(--font-size-lg);
 		font-weight: 600;
 		margin: 0;
-	}
-	.toolbar-subtitle {
-		font-size: var(--font-size-xs);
-		color: var(--color-text-muted);
 	}
 	.toolbar-actions {
 		display: flex;

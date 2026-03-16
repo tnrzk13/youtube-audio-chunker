@@ -93,7 +93,7 @@
 <header class="toolbar">
 	<a href="/" class="toolbar-icon">{'\u2190'}</a>
 	<h1>Settings</h1>
-	<button class="theme-toggle" onclick={toggleTheme}>
+	<button class="theme-toggle" onclick={toggleTheme} title={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
 		{theme.isDark ? '\u2600' : '\u263E'}
 	</button>
 </header>
@@ -180,7 +180,7 @@
 
 		<div class="field">
 			<button class="disconnect-btn" onclick={handleDisconnect} disabled={disconnecting}>
-				{disconnecting ? 'Disconnecting...' : 'Disconnect YouTube'}
+				{disconnecting ? 'Signing out...' : 'Sign out'}
 			</button>
 		</div>
 	{:else}
@@ -241,9 +241,12 @@
 		background: var(--color-bg-hover);
 	}
 	.settings {
-		max-width: 500px;
-		margin: 1.5rem auto;
-		padding: 0 1rem;
+		width: 100%;
+		max-width: 680px;
+		margin: 0 auto;
+		padding: 1.5rem 1rem;
+		flex: 1;
+		overflow-y: auto;
 	}
 	.field {
 		margin-bottom: 1.2rem;
