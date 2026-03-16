@@ -120,5 +120,13 @@
 	}
 	.card-actions {
 		flex-shrink: 0;
+		display: flex;
+		gap: 0.25rem;
+		opacity: 0;
+		transition: opacity 0.15s;
+	}
+	.card:hover .card-actions,
+	.card:focus-within .card-actions {
+		opacity: 1;
 	}
 </style>

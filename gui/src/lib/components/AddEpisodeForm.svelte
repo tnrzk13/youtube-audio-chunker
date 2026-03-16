@@ -3,9 +3,11 @@
 	import { addToQueue, processQueue } from '$lib/stores/library.svelte';
 	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
 	import { setActive } from '$lib/stores/progress.svelte';
+	import { getGarminStatus } from '$lib/stores/garmin.svelte';
 	import type { ContentType } from '$lib/types';
 
 	const settings = getSettings();
+	const garmin = getGarminStatus();
 
 	let urlInput = $state('');
 	let contentType = $state<ContentType>('podcast');
@@ -43,7 +45,7 @@
 			urlInput = '';
 
 			setActive(true);
-			await processQueue({ noTransfer: true });
+			await processQueue({ noTransfer: !garmin.data.connected });
 		} catch (e: any) {
 			errorMsg = e?.message ?? String(e);
 		} finally {
