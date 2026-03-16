@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import sys
@@ -826,7 +827,7 @@ def _maybe_auto_extract_topics(library) -> None:
                         existing_names.add(topic_data["name"].lower())
                 save_topics(store)
         except Exception:
-            pass  # best-effort background extraction
+            logging.getLogger(__name__).exception("Auto topic extraction failed")
 
     thread = threading.Thread(target=_run)
     thread.daemon = True
