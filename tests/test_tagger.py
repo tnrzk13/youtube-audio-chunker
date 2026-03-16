@@ -129,6 +129,23 @@ class TestTagChunks:
         assert "Solo Title" in str(talb_calls[0][0][1])
 
     @patch("youtube_audio_chunker.tagger.MP3")
+    def test_podcast_chunks_set_tpe2(self, mock_mp3_cls, chunk_paths):
+        mock_file = MagicMock()
+        mock_mp3_cls.return_value = mock_file
+        mock_file.tags = MagicMock()
+
+        tag_chunks(
+            chunk_paths, title="Episode 1", total_chunks=3, artist="Host",
+            album="My Show", content_type=ContentType.PODCAST,
+        )
+
+        calls = mock_file.tags.__setitem__.call_args_list
+        tpe2_calls = [c for c in calls if c[0][0] == "TPE2"]
+        assert len(tpe2_calls) == 3
+        for tpe2_call in tpe2_calls:
+            assert "My Show" in str(tpe2_call[0][1])
+
+    @patch("youtube_audio_chunker.tagger.MP3")
     def test_track_offset_produces_offset_track_numbers(self, mock_mp3_cls, chunk_paths):
         mock_file = MagicMock()
         mock_mp3_cls.return_value = mock_file
@@ -186,6 +203,62 @@ class TestTagSingle:
         calls = mock_file.tags.__setitem__.call_args_list
         talb_calls = [c for c in calls if c[0][0] == "TALB"]
         assert "Standalone" in str(talb_calls[0][0][1])
+
+    @patch("youtube_audio_chunker.tagger.MP3")
+    def test_podcast_sets_tpe2_to_show_name(self, mock_mp3_cls, tmp_path):
+        mock_file = MagicMock()
+        mock_mp3_cls.return_value = mock_file
+        mock_file.tags = MagicMock()
+
+        audio_path = tmp_path / "episode.mp3"
+        audio_path.write_bytes(b"\x00" * 100)
+
+        tag_single(
+            audio_path, title="Episode 5", artist="Host",
+            content_type=ContentType.PODCAST, album="My Podcast",
+        )
+
+        calls = mock_file.tags.__setitem__.call_args_list
+        tpe2_calls = [c for c in calls if c[0][0] == "TPE2"]
+        assert len(tpe2_calls) == 1
+        assert "My Podcast" in str(tpe2_calls[0][0][1])
+
+    @patch("youtube_audio_chunker.tagger.MP3")
+    def test_audiobook_sets_tpe2_to_show_name(self, mock_mp3_cls, tmp_path):
+        mock_file = MagicMock()
+        mock_mp3_cls.return_value = mock_file
+        mock_file.tags = MagicMock()
+
+        audio_path = tmp_path / "chapter.mp3"
+        audio_path.write_bytes(b"\x00" * 100)
+
+        tag_single(
+            audio_path, title="Chapter 1", artist="Author",
+            content_type=ContentType.AUDIOBOOK, album="My Book",
+        )
+
+        calls = mock_file.tags.__setitem__.call_args_list
+        tpe2_calls = [c for c in calls if c[0][0] == "TPE2"]
+        assert len(tpe2_calls) == 1
+        assert "My Book" in str(tpe2_calls[0][0][1])
+
+    @patch("youtube_audio_chunker.tagger.MP3")
+    def test_music_does_not_set_tpe2(self, mock_mp3_cls, tmp_path):
+        mock_file = MagicMock()
+        mock_mp3_cls.return_value = mock_file
+        mock_file.tags = MagicMock()
+
+        audio_path = tmp_path / "song.mp3"
+        audio_path.write_bytes(b"\x00" * 100)
+
+        tag_single(
+            audio_path, title="Song", artist="Band",
+            content_type=ContentType.MUSIC,
+        )
+
+        calls = mock_file.tags.__setitem__.call_args_list
+        tpe2_calls = [c for c in calls if c[0][0] == "TPE2"]
+        assert len(tpe2_calls) == 0
 
     @patch("youtube_audio_chunker.tagger.MP3")
     def test_audiobook_sets_genre_to_audiobook(self, mock_mp3_cls, tmp_path):

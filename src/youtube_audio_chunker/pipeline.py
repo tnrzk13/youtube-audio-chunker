@@ -21,12 +21,14 @@ from youtube_audio_chunker.garmin import (
     list_garmin_episodes,
     get_available_space_bytes,
 )
+from youtube_audio_chunker.errors import GarminError
 from youtube_audio_chunker.library import (
     load_library,
     save_library,
     move_to_downloaded,
     mark_synced,
     update_episode,
+    update_queue_entry,
     DownloadedEpisode,
     Library,
     QueueEntry,
@@ -133,6 +135,46 @@ def edit_episode(
 
     save_library(library, library_path)
     return asdict(ep)
+
+
+def resync_episode(
+    video_id: str,
+    library_path: Path = LIBRARY_PATH,
+    output_dir: Path = OUTPUT_DIR,
+) -> dict | None:
+    """Remove episode from watch and re-copy with current metadata."""
+    library = load_library(library_path)
+    ep = next((e for e in library.downloaded if e.video_id == video_id), None)
+    if ep is None:
+        return None
+
+    garmin_mount = find_garmin_mount()
+    if garmin_mount is None:
+        raise GarminError("No Garmin watch detected.")
+
+    remove_from_garmin(ep.folder_name, garmin_mount)
+
+    episode_dir = output_dir / ep.folder_name
+    copy_to_garmin(episode_dir, garmin_mount, ContentType(ep.content_type))
+
+    mark_synced(library, video_id)
+    save_library(library, library_path)
+    return asdict(ep)
+
+
+def edit_queue_entry(
+    video_id: str,
+    updates: dict,
+    library_path: Path = LIBRARY_PATH,
+) -> dict | None:
+    """Update fields on a queued episode (no files on disk to retag)."""
+    library = load_library(library_path)
+    entry = update_queue_entry(library, video_id, updates)
+    if entry is None:
+        return None
+
+    save_library(library, library_path)
+    return asdict(entry)
 
 
 def select_episodes_for_removal(episodes, deficit_bytes):
@@ -276,7 +318,7 @@ def _prepare_episode(
         track_offset = episode_index * 100
         tag_chunks(
             chunks, title=dl.title, total_chunks=len(chunks), artist=artist,
-            album=album, track_offset=track_offset,
+            album=album, track_offset=track_offset, content_type=content_type,
         )
         if not options.keep_full:
             dl.audio_path.unlink(missing_ok=True)
