@@ -59,8 +59,11 @@ def extract_topics_from_titles(
         else:
             raw = _call_anthropic(api_key, prompt, resolved_model)
         return _parse_topics_response(raw)
-    except Exception:
+    except Exception as exc:
         log.exception("Topic extraction failed (provider=%s)", provider)
+        error_msg = _extract_api_error(exc)
+        if error_msg:
+            raise RuntimeError(error_msg) from exc
         return []
 
 
@@ -84,9 +87,29 @@ def _call_openai(api_key: str, prompt: str, model: str) -> str:
     return response.choices[0].message.content
 
 
+def _extract_api_error(exc: Exception) -> str | None:
+    """Extract a user-facing message from API errors, or None for transient failures."""
+    msg = str(exc).lower()
+    if "credit" in msg or "billing" in msg or "balance" in msg:
+        return "API account has insufficient credits. Check your billing at the provider's console."
+    if "authentication" in msg or "auth" in msg or "invalid.*key" in msg or "api key" in msg:
+        return "Invalid API key. Check your key in Settings."
+    if "rate" in msg and "limit" in msg:
+        return "Rate limited by the API. Try again in a moment."
+    if "not found" in msg or "does not exist" in msg:
+        model_hint = "model" if "model" in msg else ""
+        return f"API error: {exc}" if model_hint else None
+    return None
+
+
 def _parse_topics_response(raw: str) -> list[dict]:
     try:
-        data = json.loads(raw)
+        # Strip markdown code fences if present
+        stripped = raw.strip()
+        if stripped.startswith("```"):
+            stripped = stripped.split("\n", 1)[1]  # remove ```json line
+            stripped = stripped.rsplit("```", 1)[0]  # remove closing ```
+        data = json.loads(stripped)
         if not isinstance(data, list):
             return []
         return [
