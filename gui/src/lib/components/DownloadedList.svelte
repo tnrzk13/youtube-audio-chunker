@@ -3,6 +3,7 @@
 	import EpisodeEditForm from './EpisodeEditForm.svelte';
 	import type { DownloadedEpisode, ContentType } from '$lib/types';
 	import { formatDuration } from '$lib/format';
+	import { STORAGE_KEYS } from '$lib/constants';
 	import { removeEpisode, removeEpisodes, transferEpisode, editEpisode, resyncEpisode } from '$lib/stores/library.svelte';
 	import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
 	import { setActive } from '$lib/stores/progress.svelte';
@@ -73,14 +74,11 @@
 
 	const garmin = getGarminStatus();
 
-	const STORAGE_KEY_SECTIONS = 'collapsed-sections';
-	const STORAGE_KEY_GROUPS = 'collapsed-groups';
-
 	let collapsedSections = $state<Set<string>>(
-		new Set(JSON.parse(localStorage.getItem(STORAGE_KEY_SECTIONS) ?? '[]'))
+		new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.COLLAPSED_SECTIONS) ?? '[]'))
 	);
 	let collapsedGroups = $state<Set<string>>(
-		new Set(JSON.parse(localStorage.getItem(STORAGE_KEY_GROUPS) ?? '[]'))
+		new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.COLLAPSED_GROUPS) ?? '[]'))
 	);
 
 	function toggleSection(label: string) {
@@ -90,7 +88,7 @@
 			collapsedSections.add(label);
 		}
 		collapsedSections = new Set(collapsedSections);
-		localStorage.setItem(STORAGE_KEY_SECTIONS, JSON.stringify([...collapsedSections]));
+		localStorage.setItem(STORAGE_KEYS.COLLAPSED_SECTIONS, JSON.stringify([...collapsedSections]));
 	}
 
 	function toggleGroup(showName: string) {
@@ -100,7 +98,7 @@
 			collapsedGroups.add(showName);
 		}
 		collapsedGroups = new Set(collapsedGroups);
-		localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify([...collapsedGroups]));
+		localStorage.setItem(STORAGE_KEYS.COLLAPSED_GROUPS, JSON.stringify([...collapsedGroups]));
 	}
 
 	const SECTION_ORDER = ['Podcasts', 'Music', 'Audiobooks'] as const;
