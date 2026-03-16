@@ -48,6 +48,7 @@ from youtube_audio_chunker.library import (
     load_library,
     mark_synced,
     remove_episode,
+    remove_episodes,
     rename_show,
     save_library,
 )
@@ -60,6 +61,22 @@ from youtube_audio_chunker.pipeline import (
     resync_episode,
     transfer_unsynced,
 )
+from youtube_audio_chunker.topics import (
+    add_topic,
+    delete_topic,
+    dismiss_video,
+    get_excluded_video_ids,
+    load_topics,
+    record_video_history,
+    save_topics,
+    update_topic,
+)
+from youtube_audio_chunker.discovery import (
+    cache_results,
+    get_cached_results,
+    search_youtube_api,
+)
+from youtube_audio_chunker.topic_extractor import extract_topics_from_titles
 
 ERROR_CODES = {
     DependencyError: -32001,
@@ -81,6 +98,7 @@ _ASYNC_METHODS = {
     "list_subscriptions", "list_home_feed", "list_liked_videos",
     "list_playlists", "list_playlist_videos",
     "connect_cookies", "detect_browser",
+    "extract_topics", "search_topic",
 }
 
 
@@ -242,6 +260,7 @@ def _handle_add_to_queue(params: dict) -> dict:
     show_name = params.get("show_name")
     library = load_library()
     added = []
+    added_ids = []
     skipped = []
 
     for url in urls:
@@ -257,16 +276,24 @@ def _handle_add_to_queue(params: dict) -> dict:
             )
             if was_added:
                 added.append(entry["title"])
+                added_ids.append(entry["id"])
             else:
                 skipped.append(entry["title"])
 
     save_library(library)
+
+    if added_ids:
+        _record_history_for_ids(added_ids)
+        _maybe_auto_extract_topics(library)
+
     return {"added": added, "skipped": skipped}
 
 
 def _handle_remove_episode(params: dict) -> dict:
     video_id = params["video_id"]
     library = load_library()
+
+    _record_history_for_ids([video_id])
 
     episode_dir = OUTPUT_DIR / _find_folder_name(library, video_id)
     remove_episode(library, video_id)
@@ -285,6 +312,51 @@ def _handle_remove_from_garmin(params: dict) -> dict:
         raise GarminError("No Garmin watch detected.")
     remove_from_garmin(folder_name, mount)
     return {"removed": folder_name}
+
+
+def _handle_remove_episodes(params: dict) -> dict:
+    video_ids = params["video_ids"]
+    library = load_library()
+
+    _record_history_for_ids(video_ids)
+
+    folder_names = [
+        ep.folder_name
+        for ep in library.downloaded
+        if ep.video_id in set(video_ids)
+    ]
+
+    remove_episodes(library, set(video_ids))
+    save_library(library)
+
+    failed = []
+    for folder_name in folder_names:
+        episode_dir = OUTPUT_DIR / folder_name
+        if episode_dir.exists():
+            try:
+                shutil.rmtree(episode_dir)
+            except OSError as exc:
+                failed.append({"folder_name": folder_name, "error": str(exc)})
+
+    return {"removed": video_ids, "failed": failed}
+
+
+def _handle_remove_from_garmin_batch(params: dict) -> dict:
+    folder_names = params["folder_names"]
+    mount = find_garmin_mount()
+    if mount is None:
+        raise GarminError("No Garmin watch detected.")
+
+    removed = []
+    failed = []
+    for name in folder_names:
+        try:
+            remove_from_garmin(name, mount)
+            removed.append(name)
+        except Exception as exc:
+            failed.append({"folder_name": name, "error": str(exc)})
+
+    return {"removed": removed, "failed": failed}
 
 
 # --- Process queue with progress ---
@@ -538,6 +610,162 @@ def _handle_disconnect_auth(params: dict) -> dict:
     return {"disconnected": True}
 
 
+# --- Discovery / Topics ---
+
+
+def _handle_get_topics(params: dict) -> dict:
+    store = load_topics()
+    return {"topics": [asdict(t) for t in store.topics]}
+
+
+def _handle_create_topic(params: dict) -> dict:
+    name = params["name"]
+    search_query = params["search_query"]
+    store = load_topics()
+    add_topic(store, name, search_query, source_video_ids=[])
+    save_topics(store)
+    return {"topics": [asdict(t) for t in store.topics]}
+
+
+def _handle_update_topic(params: dict) -> dict:
+    topic_id = params["topic_id"]
+    store = load_topics()
+    result = update_topic(
+        store, topic_id,
+        name=params.get("name"),
+        search_query=params.get("search_query"),
+    )
+    if result is None:
+        raise ChunkerError(f"Topic not found: {topic_id}")
+    save_topics(store)
+    return asdict(result)
+
+
+def _handle_delete_topic(params: dict) -> dict:
+    topic_id = params["topic_id"]
+    store = load_topics()
+    delete_topic(store, topic_id)
+    save_topics(store)
+    return {"deleted": topic_id}
+
+
+def _handle_dismiss_video(params: dict) -> dict:
+    video_id = params["video_id"]
+    store = load_topics()
+    dismiss_video(store, video_id)
+    save_topics(store)
+    return {"dismissed": video_id}
+
+
+def _handle_search_topic(params: dict) -> dict:
+    topic_id = params["topic_id"]
+    page_token = params.get("page_token")
+
+    settings = _load_settings()
+    api_key = settings.get("youtube_api_key", "")
+    if not api_key:
+        raise ChunkerError("YouTube API key not configured. Set it in Settings.")
+
+    store = load_topics()
+    topic = next((t for t in store.topics if t.id == topic_id), None)
+    if topic is None:
+        raise ChunkerError(f"Topic not found: {topic_id}")
+
+    # Use cache if fresh and no specific page requested
+    if not page_token:
+        cached = get_cached_results(topic_id)
+        if cached is not None:
+            library = load_library()
+            excluded = get_excluded_video_ids(store, library)
+            filtered = [r for r in cached["results"] if r["video_id"] not in excluded]
+            return {"results": filtered, "next_page_token": cached.get("next_page_token")}
+
+    result = search_youtube_api(topic.search_query, api_key, page_token=page_token)
+
+    # Cache the raw results
+    cache_results(topic_id, result["results"], result["next_page_token"])
+
+    # Filter out excluded videos
+    library = load_library()
+    excluded = get_excluded_video_ids(store, library)
+    filtered = [r for r in result["results"] if r["video_id"] not in excluded]
+
+    return {"results": filtered, "next_page_token": result["next_page_token"]}
+
+
+def _handle_extract_topics(params: dict) -> dict:
+    settings = _load_settings()
+    api_key = settings.get("anthropic_api_key", "")
+    if not api_key:
+        raise ChunkerError("Anthropic API key not configured. Set it in Settings.")
+
+    library = load_library()
+    titles = [e.title for e in library.queue] + [e.title for e in library.downloaded]
+    if not titles:
+        return {"topics": [], "new_count": 0}
+
+    extracted = extract_topics_from_titles(titles, api_key)
+
+    store = load_topics()
+    existing_names = {t.name.lower() for t in store.topics}
+    new_count = 0
+    video_ids = [e.video_id for e in library.queue] + [e.video_id for e in library.downloaded]
+
+    for topic_data in extracted:
+        if topic_data["name"].lower() not in existing_names:
+            add_topic(store, topic_data["name"], topic_data["search_query"], video_ids)
+            existing_names.add(topic_data["name"].lower())
+            new_count += 1
+
+    save_topics(store)
+    return {"topics": [asdict(t) for t in store.topics], "new_count": new_count}
+
+
+def _record_history_for_ids(video_ids: list[str]) -> None:
+    store = load_topics()
+    record_video_history(store, video_ids)
+    save_topics(store)
+
+
+def _maybe_auto_extract_topics(library) -> None:
+    """Spawn background topic extraction if Anthropic key is configured."""
+    settings = _load_settings()
+    api_key = settings.get("anthropic_api_key", "")
+    if not api_key:
+        return
+
+    titles = [e.title for e in library.queue] + [e.title for e in library.downloaded]
+    if not titles:
+        return
+
+    def _run():
+        try:
+            extracted = extract_topics_from_titles(titles, api_key)
+            store = load_topics()
+            existing_names = {t.name.lower() for t in store.topics}
+            video_ids = [e.video_id for e in library.queue] + [
+                e.video_id for e in library.downloaded
+            ]
+            for topic_data in extracted:
+                if topic_data["name"].lower() not in existing_names:
+                    add_topic(store, topic_data["name"], topic_data["search_query"], video_ids)
+                    existing_names.add(topic_data["name"].lower())
+            save_topics(store)
+        except Exception:
+            pass  # best-effort background extraction
+
+    thread = threading.Thread(target=_run)
+    thread.daemon = True
+    thread.start()
+
+
+def _load_settings() -> dict:
+    settings_path = _settings_path()
+    if not settings_path.exists():
+        return {}
+    return json.loads(settings_path.read_text())
+
+
 # --- Method registry ---
 
 _METHODS = {
@@ -552,7 +780,9 @@ _METHODS = {
     "list_channel_videos": _handle_list_channel_videos,
     "add_to_queue": _handle_add_to_queue,
     "remove_episode": _handle_remove_episode,
+    "remove_episodes": _handle_remove_episodes,
     "remove_from_garmin": _handle_remove_from_garmin,
+    "remove_from_garmin_batch": _handle_remove_from_garmin_batch,
     "process_queue": _handle_process_queue,
     "transfer_unsynced": _handle_transfer_unsynced,
     "transfer_episode": _handle_transfer_episode,
@@ -568,6 +798,13 @@ _METHODS = {
     "connect_cookies": _handle_connect_cookies,
     "get_auth_status": _handle_get_auth_status,
     "disconnect_auth": _handle_disconnect_auth,
+    "get_topics": _handle_get_topics,
+    "create_topic": _handle_create_topic,
+    "update_topic": _handle_update_topic,
+    "delete_topic": _handle_delete_topic,
+    "dismiss_video": _handle_dismiss_video,
+    "search_topic": _handle_search_topic,
+    "extract_topics": _handle_extract_topics,
 }
 
 

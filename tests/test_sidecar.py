@@ -23,6 +23,8 @@ from youtube_audio_chunker.sidecar import (
     _handle_list_playlists,
     _handle_list_shows,
     _handle_list_subscriptions,
+    _handle_remove_episodes,
+    _handle_remove_from_garmin_batch,
     _handle_rename_show,
     _handle_resync_episode,
     _handle_search_youtube,
@@ -444,3 +446,103 @@ class TestHandleDisconnectAuth:
 
         assert result == {"disconnected": True}
         mock_disconnect.assert_called_once()
+
+
+class TestHandleRemoveEpisodes:
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_removes_multiple_episodes_and_folders(
+        self, mock_load, mock_save, mock_rmtree, tmp_path
+    ):
+        library = Library(
+            queue=[
+                QueueEntry(video_id="q1", url="u1", title="Q1", added_at="t"),
+            ],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id="d1", url="u2", title="D1",
+                    folder_name="D1-Folder", chunk_count=3,
+                    total_size_bytes=1000, downloaded_at="t", synced_at=None,
+                ),
+                DownloadedEpisode(
+                    video_id="d2", url="u3", title="D2",
+                    folder_name="D2-Folder", chunk_count=5,
+                    total_size_bytes=2000, downloaded_at="t", synced_at=None,
+                ),
+            ],
+        )
+        mock_load.return_value = library
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "D1-Folder").mkdir()
+            result = _handle_remove_episodes({"video_ids": ["q1", "d1"]})
+
+        assert set(result["removed"]) == {"q1", "d1"}
+        assert result["failed"] == []
+        mock_save.assert_called_once()
+        mock_rmtree.assert_called_once()
+        # d2 should still be in library
+        assert len(library.downloaded) == 1
+        assert library.downloaded[0].video_id == "d2"
+        assert len(library.queue) == 0
+
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_collects_rmtree_failures(self, mock_load, mock_save, tmp_path):
+        library = Library(
+            queue=[],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id="d1", url="u", title="D1",
+                    folder_name="D1-Folder", chunk_count=1,
+                    total_size_bytes=100, downloaded_at="t", synced_at=None,
+                ),
+            ],
+        )
+        mock_load.return_value = library
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path), \
+             patch(f"{SIDECAR_MODULE}.shutil.rmtree", side_effect=OSError("permission denied")):
+            (tmp_path / "D1-Folder").mkdir()
+            result = _handle_remove_episodes({"video_ids": ["d1"]})
+
+        assert result["removed"] == ["d1"]
+        assert len(result["failed"]) == 1
+        assert result["failed"][0]["folder_name"] == "D1-Folder"
+
+
+class TestHandleRemoveFromGarminBatch:
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount")
+    def test_removes_multiple_folders(self, mock_mount, mock_remove, tmp_path):
+        mock_mount.return_value = tmp_path
+
+        result = _handle_remove_from_garmin_batch(
+            {"folder_names": ["Ep-1", "Ep-2"]}
+        )
+
+        assert result["removed"] == ["Ep-1", "Ep-2"]
+        assert result["failed"] == []
+        assert mock_remove.call_count == 2
+
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount")
+    def test_collects_partial_failures(self, mock_mount, mock_remove, tmp_path):
+        mock_mount.return_value = tmp_path
+        mock_remove.side_effect = [None, Exception("not found")]
+
+        result = _handle_remove_from_garmin_batch(
+            {"folder_names": ["Ep-1", "Ep-2"]}
+        )
+
+        assert result["removed"] == ["Ep-1"]
+        assert len(result["failed"]) == 1
+        assert result["failed"][0]["folder_name"] == "Ep-2"
+
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount", return_value=None)
+    def test_raises_when_no_garmin(self, mock_mount):
+        import pytest
+
+        with pytest.raises(Exception, match="No Garmin watch detected"):
+            _handle_remove_from_garmin_batch({"folder_names": ["Ep-1"]})

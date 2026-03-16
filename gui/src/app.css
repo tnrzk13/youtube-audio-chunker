@@ -171,6 +171,69 @@
   text-align: center;
 }
 
+/* --- Button system --- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-sm {
+  padding: 0.2rem 0.6rem;
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btn-outline {
+  background: none;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-bg-button-hover);
+}
+
+.btn-danger {
+  background: var(--color-danger-confirm);
+  border-color: var(--color-danger-confirm);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-danger-confirm-hover);
+}
+
+.btn-outline-danger {
+  background: none;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.btn-outline-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+}
+
+/* --- Icon buttons --- */
+
 .btn-icon {
   background: none;
   border: 1px solid transparent;
@@ -230,6 +293,47 @@
 }
 .theme-toggle:hover {
   background: var(--color-bg-hover);
+}
+
+.btn-transfer {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-base);
+  color: var(--color-success);
+  transition: all 0.15s;
+}
+.btn-transfer:hover:not(:disabled) {
+  background: var(--color-success-light);
+  border-color: var(--color-success);
+}
+.btn-transfer:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.select-toggle {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.3rem 0.75rem;
+}
+
+.select-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--color-bg-panel);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .card-status-synced {

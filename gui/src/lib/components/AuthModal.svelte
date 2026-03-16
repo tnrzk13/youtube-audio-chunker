@@ -75,7 +75,7 @@
 				<div class="modal-error">{errorMsg}</div>
 			{/if}
 
-			<button class="modal-close" onclick={handleClose}>Cancel</button>
+			<button class="btn btn-outline" onclick={handleClose}>Cancel</button>
 		</div>
 	</div>
 {/if}
@@ -165,19 +165,5 @@
 		font-size: var(--font-size-sm);
 		color: var(--color-danger);
 		margin-bottom: 0.5rem;
-	}
-	.modal-close {
-		font-size: var(--font-size-md);
-		padding: 0.35rem 0.75rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: none;
-		color: var(--color-text-secondary);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.modal-close:hover {
-		background: var(--color-bg-hover);
-		color: var(--color-text);
 	}
 </style>

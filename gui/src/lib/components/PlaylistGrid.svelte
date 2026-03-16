@@ -44,7 +44,7 @@
 <div class="playlist-grid-view">
 	<div class="playlist-header">
 		<span class="playlist-title">Playlists</span>
-		<button class="refresh-btn" onclick={loadPlaylists} disabled={loading}>
+		<button class="btn btn-sm btn-outline" onclick={loadPlaylists} disabled={loading}>
 			{loading ? 'Loading...' : 'Refresh'}
 		</button>
 	</div>
@@ -57,7 +57,7 @@
 		<div class="playlist-loading">Loading playlists...</div>
 	{:else if !initialized}
 		<div class="playlist-empty">
-			<button class="load-btn" onclick={loadPlaylists}>Load Playlists</button>
+			<button class="btn btn-primary" onclick={loadPlaylists}>Load Playlists</button>
 		</div>
 	{:else if playlists.length === 0}
 		<div class="playlist-empty">No playlists found</div>
@@ -94,35 +94,6 @@
 		font-weight: 600;
 		color: var(--color-text-secondary);
 		flex: 1;
-	}
-	.refresh-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.2rem 0.5rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: none;
-		color: var(--color-text-secondary);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.refresh-btn:hover:not(:disabled) {
-		background: var(--color-bg-hover);
-	}
-	.refresh-btn:disabled {
-		opacity: 0.5;
-	}
-	.load-btn {
-		font-size: var(--font-size-md);
-		padding: 0.4rem 1rem;
-		border: 1px solid var(--color-primary);
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: #fff;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.load-btn:hover {
-		background: var(--color-primary-hover);
 	}
 	.playlist-error {
 		font-size: var(--font-size-sm);

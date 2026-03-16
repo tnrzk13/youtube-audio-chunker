@@ -265,11 +265,11 @@
 			<option value="podcast">Podcast</option>
 			<option value="audiobook">Audiobook</option>
 		</select>
-		<button type="submit" disabled={buttonDisabled}>
+		<button class="btn btn-primary" type="submit" disabled={buttonDisabled}>
 			{buttonLabel}
 		</button>
 		{#if resultsVisible || loadingChannel}
-			<button type="button" class="dismiss-btn" onclick={dismissResults}>&times; Close</button>
+			<button type="button" class="btn btn-sm btn-outline" onclick={dismissResults}>&times; Close</button>
 		{/if}
 	</div>
 	{#if errorMsg}
@@ -281,7 +281,7 @@
 	<div class="search-results">
 		<div class="results-header">
 			{#if resultsView === 'channel'}
-				<button class="back-btn" onclick={handleBackToSearch} disabled={loadingChannel}>
+				<button class="btn btn-sm btn-outline" onclick={handleBackToSearch} disabled={loadingChannel}>
 					&larr; Back
 				</button>
 				<span class="results-title">{channelName}</span>
@@ -290,7 +290,7 @@
 			{/if}
 			{#if selectedUrls.size > 0}
 				<div class="header-actions">
-					<button class="add-selected-btn" onclick={handleAddSelected} disabled={submitting}>
+					<button class="btn btn-sm btn-primary" onclick={handleAddSelected} disabled={submitting}>
 						Add ({selectedUrls.size})
 					</button>
 				</div>
@@ -422,24 +422,6 @@
 		outline: none;
 		border-color: var(--color-primary);
 	}
-	button {
-		font-size: var(--font-size-md);
-		padding: 0.3rem 0.75rem;
-		border: 1px solid var(--color-primary);
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: #fff;
-		cursor: pointer;
-		white-space: nowrap;
-		transition: all 0.15s;
-	}
-	button:hover:not(:disabled) {
-		background: var(--color-primary-hover);
-	}
-	button:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
 	.error {
 		font-size: var(--font-size-sm);
 		color: var(--color-danger);
@@ -474,35 +456,6 @@
 		align-items: center;
 		gap: 0.3rem;
 		flex-shrink: 0;
-	}
-	.back-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.15rem 0.4rem;
-		background: none;
-		border: 1px solid var(--color-border);
-		color: var(--color-text-secondary);
-	}
-	.back-btn:hover:not(:disabled) {
-		background: var(--color-bg-hover);
-	}
-	.add-selected-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.15rem 0.5rem;
-	}
-	.dismiss-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.25rem 0.5rem;
-		background: none;
-		border: 1px solid var(--color-border);
-		color: var(--color-text-secondary);
-		line-height: 1;
-		gap: 0.2rem;
-		margin-left: auto;
-	}
-	.dismiss-btn:hover:not(:disabled) {
-		color: var(--color-text);
-		background: var(--color-bg-hover);
-		border-color: var(--color-text-muted);
 	}
 	.results-loading {
 		padding: 0.75rem;

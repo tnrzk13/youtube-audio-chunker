@@ -13,6 +13,7 @@ from youtube_audio_chunker.library import (
     move_to_downloaded,
     mark_synced,
     remove_episode,
+    remove_episodes,
     rename_show,
     list_shows,
     update_episode,
@@ -190,6 +191,39 @@ class TestRemoveEpisode:
         lib = remove_episode(empty_library, "unknown")
         assert len(lib.queue) == 0
         assert len(lib.downloaded) == 0
+
+
+class TestRemoveEpisodes:
+    def test_removes_mix_of_queue_and_downloaded(self):
+        q1 = QueueEntry(video_id="q1", url="u1", title="Q1", added_at="t")
+        q2 = QueueEntry(video_id="q2", url="u2", title="Q2", added_at="t")
+        d1 = DownloadedEpisode(
+            video_id="d1", url="u3", title="D1", folder_name="D1",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+        )
+        d2 = DownloadedEpisode(
+            video_id="d2", url="u4", title="D2", folder_name="D2",
+            chunk_count=1, total_size_bytes=100,
+            downloaded_at="t", synced_at=None,
+        )
+        lib = Library(queue=[q1, q2], downloaded=[d1, d2])
+
+        remove_episodes(lib, {"q1", "d2"})
+
+        assert [e.video_id for e in lib.queue] == ["q2"]
+        assert [e.video_id for e in lib.downloaded] == ["d1"]
+
+    def test_noop_for_unknown_ids(self, empty_library):
+        remove_episodes(empty_library, {"unknown1", "unknown2"})
+        assert len(empty_library.queue) == 0
+        assert len(empty_library.downloaded) == 0
+
+    def test_empty_set_removes_nothing(self, queue_entry, downloaded_episode):
+        lib = Library(queue=[queue_entry], downloaded=[downloaded_episode])
+        remove_episodes(lib, set())
+        assert len(lib.queue) == 1
+        assert len(lib.downloaded) == 1
 
 
 class TestBackwardCompatibility:

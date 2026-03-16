@@ -2,7 +2,7 @@
 	import EpisodeCard from './EpisodeCard.svelte';
 	import EpisodeEditForm from './EpisodeEditForm.svelte';
 	import type { DownloadedEpisode, ContentType } from '$lib/types';
-	import { removeEpisode, transferEpisode, editEpisode, resyncEpisode } from '$lib/stores/library.svelte';
+	import { removeEpisode, removeEpisodes, transferEpisode, editEpisode, resyncEpisode } from '$lib/stores/library.svelte';
 	import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
 	import { setActive } from '$lib/stores/progress.svelte';
 
@@ -14,6 +14,54 @@
 
 	const UNDO_DELAY_MS = 5000;
 	let pendingDelete = $state<{ videoId: string; title: string; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
+
+	let selectMode = $state(false);
+	let selectedIds = $state<Set<string>>(new Set());
+	let pendingBatchDelete = $state<{ ids: Set<string>; count: number; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
+
+	function enterSelectMode() {
+		editingId = null;
+		selectMode = true;
+		selectedIds = new Set();
+	}
+
+	function exitSelectMode() {
+		selectMode = false;
+		selectedIds = new Set();
+	}
+
+	function toggleSelected(videoId: string) {
+		if (selectedIds.has(videoId)) {
+			selectedIds.delete(videoId);
+		} else {
+			selectedIds.add(videoId);
+		}
+		selectedIds = new Set(selectedIds);
+	}
+
+	function handleBatchDelete() {
+		if (selectedIds.size === 0) return;
+		if (pendingBatchDelete) {
+			clearTimeout(pendingBatchDelete.timeoutId);
+			executeBatchDelete(pendingBatchDelete.ids);
+		}
+		const ids = new Set(selectedIds);
+		const count = ids.size;
+		const timeoutId = setTimeout(() => executeBatchDelete(ids), UNDO_DELAY_MS);
+		pendingBatchDelete = { ids, count, timeoutId };
+		exitSelectMode();
+	}
+
+	async function executeBatchDelete(ids: Set<string>) {
+		pendingBatchDelete = null;
+		await removeEpisodes([...ids]);
+	}
+
+	function undoBatchDelete() {
+		if (!pendingBatchDelete) return;
+		clearTimeout(pendingBatchDelete.timeoutId);
+		pendingBatchDelete = null;
+	}
 
 	let editShowName = $state('');
 	let editArtist = $state('');
@@ -73,8 +121,15 @@
 	}
 
 	let visibleEpisodes = $derived.by(() => {
-		const pending = pendingDelete;
-		return pending ? episodes.filter((ep) => ep.video_id !== pending.videoId) : episodes;
+		let result = episodes;
+		if (pendingDelete) {
+			result = result.filter((ep) => ep.video_id !== pendingDelete!.videoId);
+		}
+		if (pendingBatchDelete) {
+			const ids = pendingBatchDelete.ids;
+			result = result.filter((ep) => !ids.has(ep.video_id));
+		}
+		return result;
 	});
 
 	let sections: Section[] = $derived(
@@ -201,7 +256,16 @@
 </script>
 
 {#snippet episodeRow(ep: DownloadedEpisode)}
-	{#if editingId === ep.video_id}
+	{#if selectMode}
+		<EpisodeCard
+			title={ep.title}
+			contentType={ep.content_type}
+			subtitle={subtitle(ep)}
+			selectable={true}
+			selected={selectedIds.has(ep.video_id)}
+			onToggle={() => toggleSelected(ep.video_id)}
+		/>
+	{:else if editingId === ep.video_id}
 		<EpisodeEditForm
 			bind:title={editTitle}
 			bind:showName={editShowName}
@@ -256,6 +320,18 @@
 {#if episodes.length === 0}
 	<p class="empty">No downloaded episodes</p>
 {:else}
+	{#if selectMode}
+		<div class="select-bar">
+			<button class="btn btn-danger" onclick={handleBatchDelete} disabled={selectedIds.size === 0}>
+				Delete ({selectedIds.size})
+			</button>
+			<button class="btn btn-outline" onclick={exitSelectMode}>Cancel</button>
+		</div>
+	{:else}
+		<div class="select-toggle">
+			<button class="btn btn-outline" onclick={enterSelectMode}>Select</button>
+		</div>
+	{/if}
 	{#each sections as section (section.label)}
 		<button class="section-header" onclick={() => toggleSection(section.label)}>
 			<span class="chevron" class:collapsed={collapsedSections.has(section.label)}>{'\u25BE'}</span>
@@ -293,6 +369,13 @@
 	<div class="undo-toast">
 		<span>Deleted {pendingDelete.title}</span>
 		<button onclick={undoDelete}>Undo</button>
+	</div>
+{/if}
+
+{#if pendingBatchDelete}
+	<div class="undo-toast">
+		<span>Deleted {pendingBatchDelete.count} episodes</span>
+		<button onclick={undoBatchDelete}>Undo</button>
 	</div>
 {/if}
 
@@ -359,28 +442,6 @@
 		font-weight: 400;
 		font-size: var(--font-size-xs);
 		color: var(--color-text-hint);
-	}
-	.btn-transfer {
-		background: none;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		min-width: 32px;
-		min-height: 32px;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		font-size: var(--font-size-base);
-		color: var(--color-success);
-		transition: all 0.15s;
-	}
-	.btn-transfer:hover:not(:disabled) {
-		background: var(--color-success-light);
-		border-color: var(--color-success);
-	}
-	.btn-transfer:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 	.connect-hint {
 		font-size: var(--font-size-sm);

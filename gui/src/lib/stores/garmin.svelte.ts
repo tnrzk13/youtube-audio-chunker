@@ -27,6 +27,12 @@ export async function removeFromGarmin(folderName: string) {
 	await refreshGarmin();
 }
 
+export async function removeFromGarminBatch(folderNames: string[]): Promise<{ removed: string[]; failed: { folder_name: string; error: string }[] }> {
+	const result = await call<{ removed: string[]; failed: { folder_name: string; error: string }[] }>('remove_from_garmin_batch', { folderNames });
+	await refreshGarmin();
+	return result;
+}
+
 export async function transferUnsynced(): Promise<TransferResult> {
 	const result = await call<TransferResult>('transfer_unsynced');
 	await refreshGarmin();

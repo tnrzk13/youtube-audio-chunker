@@ -55,8 +55,8 @@
 				{/each}
 			</ul>
 			<div class="dialog-actions">
-				<button class="btn-cancel" onclick={handleCancel}>Cancel</button>
-				<button class="btn-confirm" onclick={handleConfirm}>Remove & Transfer</button>
+				<button class="btn btn-outline" onclick={handleCancel}>Cancel</button>
+				<button class="btn btn-danger" onclick={handleConfirm}>Remove & Transfer</button>
 			</div>
 		</div>
 	</div>
@@ -110,30 +110,5 @@
 		display: flex;
 		justify-content: flex-end;
 		gap: 0.5rem;
-	}
-	.btn-cancel {
-		padding: 0.4rem 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: var(--color-bg-panel);
-		cursor: pointer;
-		font-size: var(--font-size-md);
-		transition: all 0.15s;
-	}
-	.btn-cancel:hover {
-		background: var(--color-bg-button-hover);
-	}
-	.btn-confirm {
-		padding: 0.4rem 1rem;
-		border: 1px solid var(--color-danger-confirm);
-		border-radius: var(--radius-md);
-		background: var(--color-danger-confirm);
-		color: #fff;
-		cursor: pointer;
-		font-size: var(--font-size-md);
-		transition: all 0.15s;
-	}
-	.btn-confirm:hover {
-		background: var(--color-danger-confirm-hover);
 	}
 </style>

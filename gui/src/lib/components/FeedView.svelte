@@ -147,12 +147,12 @@
 					<option value="podcast">Podcast</option>
 					<option value="audiobook">Audiobook</option>
 				</select>
-				<button class="add-selected-btn" onclick={handleAddSelected} disabled={submitting}>
+				<button class="btn btn-primary" onclick={handleAddSelected} disabled={submitting}>
 					Add ({selectedUrls.size})
 				</button>
 			</div>
 		{/if}
-		<button class="refresh-btn" onclick={loadFeed} disabled={loading}>
+		<button class="btn btn-outline" onclick={loadFeed} disabled={loading}>
 			{loading ? 'Loading...' : 'Refresh'}
 		</button>
 	</div>
@@ -165,7 +165,7 @@
 		<div class="feed-loading">Loading {title.toLowerCase()}...</div>
 	{:else if !initialized}
 		<div class="feed-empty">
-			<button class="load-btn" onclick={loadFeed}>Load {title}</button>
+			<button class="btn btn-primary" onclick={loadFeed}>Load {title}</button>
 		</div>
 	{:else if results.length === 0}
 		<div class="feed-empty">No videos found</div>
@@ -241,55 +241,6 @@
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-md);
 		background: var(--color-bg-panel);
-	}
-	.add-selected-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.2rem 0.5rem;
-		border: 1px solid var(--color-primary);
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: #fff;
-		cursor: pointer;
-		white-space: nowrap;
-		transition: all 0.15s;
-	}
-	.add-selected-btn:hover:not(:disabled) {
-		background: var(--color-primary-hover);
-	}
-	.add-selected-btn:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
-	.refresh-btn {
-		font-size: var(--font-size-sm);
-		padding: 0.2rem 0.5rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: none;
-		color: var(--color-text-secondary);
-		cursor: pointer;
-		white-space: nowrap;
-		transition: all 0.15s;
-	}
-	.refresh-btn:hover:not(:disabled) {
-		background: var(--color-bg-hover);
-	}
-	.refresh-btn:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
-	.load-btn {
-		font-size: var(--font-size-md);
-		padding: 0.4rem 1rem;
-		border: 1px solid var(--color-primary);
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: #fff;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.load-btn:hover {
-		background: var(--color-primary-hover);
 	}
 	.feed-error {
 		font-size: var(--font-size-sm);

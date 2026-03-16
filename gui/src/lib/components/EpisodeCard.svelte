@@ -9,6 +9,9 @@
 		syncStatus,
 		statusTooltip,
 		actions,
+		selectable = false,
+		selected = false,
+		onToggle,
 	}: {
 		title: string;
 		contentType: string;
@@ -16,6 +19,9 @@
 		syncStatus?: 'synced' | 'queued';
 		statusTooltip?: string;
 		actions?: Snippet;
+		selectable?: boolean;
+		selected?: boolean;
+		onToggle?: () => void;
 	} = $props();
 
 	let statusClass = $derived(
@@ -23,28 +29,43 @@
 	);
 </script>
 
-<div class="card {statusClass}">
-	{#if syncStatus && statusTooltip}
-		<span class="status-tooltip">
-			<span class="status-dot {syncStatus}"></span>
-			{statusTooltip}
-		</span>
-	{/if}
-	<div class="card-body">
-		<div class="card-title">{title}</div>
-		<div class="card-meta">
-			<ContentTypeBadge {contentType} />
-			{#if subtitle}
-				<span class="subtitle">{subtitle}</span>
-			{/if}
+{#if selectable}
+	<button class="card card-selectable" class:selected onclick={onToggle} type="button">
+		<input type="checkbox" checked={selected} tabindex={-1} class="select-checkbox" />
+		<div class="card-body">
+			<div class="card-title">{title}</div>
+			<div class="card-meta">
+				<ContentTypeBadge {contentType} />
+				{#if subtitle}
+					<span class="subtitle">{subtitle}</span>
+				{/if}
+			</div>
 		</div>
+	</button>
+{:else}
+	<div class="card {statusClass}">
+		{#if syncStatus && statusTooltip}
+			<span class="status-tooltip">
+				<span class="status-dot {syncStatus}"></span>
+				{statusTooltip}
+			</span>
+		{/if}
+		<div class="card-body">
+			<div class="card-title">{title}</div>
+			<div class="card-meta">
+				<ContentTypeBadge {contentType} />
+				{#if subtitle}
+					<span class="subtitle">{subtitle}</span>
+				{/if}
+			</div>
+		</div>
+		{#if actions}
+			<div class="card-actions">
+				{@render actions()}
+			</div>
+		{/if}
 	</div>
-	{#if actions}
-		<div class="card-actions">
-			{@render actions()}
-		</div>
-	{/if}
-</div>
+{/if}
 
 <style>
 	.card {
@@ -117,6 +138,26 @@
 	.subtitle {
 		font-size: var(--font-size-sm);
 		color: var(--color-text-subtitle);
+	}
+	.card-selectable {
+		cursor: pointer;
+		font: inherit;
+		text-align: left;
+		width: 100%;
+	}
+	.card-selectable:hover,
+	.card-selectable:focus-visible {
+		background: var(--color-bg-hover);
+	}
+	.card-selectable.selected {
+		background: var(--color-primary-light);
+	}
+	.select-checkbox {
+		flex-shrink: 0;
+		width: 16px;
+		height: 16px;
+		accent-color: var(--color-primary);
+		pointer-events: none;
 	}
 	.card-actions {
 		flex-shrink: 0;

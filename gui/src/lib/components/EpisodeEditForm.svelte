@@ -47,13 +47,13 @@
 	</label>
 	<div class="edit-actions">
 		<button
-			class="btn-save"
+			class="btn btn-sm btn-primary"
 			onclick={onsave}
 			disabled={saving || !title.trim()}
 		>
 			{saving ? 'Saving...' : 'Save'}
 		</button>
-		<button class="btn-cancel" onclick={oncancel} disabled={saving}>
+		<button class="btn btn-sm btn-outline" onclick={oncancel} disabled={saving}>
 			Cancel
 		</button>
 	</div>
@@ -99,39 +99,5 @@
 		gap: 0.4rem;
 		justify-content: flex-end;
 		margin-top: 0.1rem;
-	}
-	.btn-save {
-		font-size: var(--font-size-sm);
-		padding: 0.2rem 0.6rem;
-		border: 1px solid var(--color-primary);
-		border-radius: var(--radius-sm);
-		background: var(--color-primary);
-		color: #fff;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.btn-save:hover:not(:disabled) {
-		background: var(--color-primary-hover);
-	}
-	.btn-save:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
-	.btn-cancel {
-		font-size: var(--font-size-sm);
-		padding: 0.2rem 0.6rem;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		background: none;
-		color: var(--color-text-secondary);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.btn-cancel:hover:not(:disabled) {
-		background: var(--color-bg-button-hover);
-	}
-	.btn-cancel:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

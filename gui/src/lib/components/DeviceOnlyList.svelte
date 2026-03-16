@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EpisodeCard from './EpisodeCard.svelte';
 	import type { DownloadedEpisode, GarminEpisode } from '$lib/types';
-	import { removeFromGarmin } from '$lib/stores/garmin.svelte';
+	import { removeFromGarmin, removeFromGarminBatch } from '$lib/stores/garmin.svelte';
 
 	let {
 		garminEpisodes,
@@ -13,6 +13,47 @@
 
 	let removingId = $state<string | null>(null);
 	let errorMsg = $state('');
+
+	let selectMode = $state(false);
+	let selectedNames = $state<Set<string>>(new Set());
+	let batchRemoving = $state(false);
+
+	function enterSelectMode() {
+		selectMode = true;
+		selectedNames = new Set();
+	}
+
+	function exitSelectMode() {
+		selectMode = false;
+		selectedNames = new Set();
+	}
+
+	function toggleSelected(folderName: string) {
+		if (selectedNames.has(folderName)) {
+			selectedNames.delete(folderName);
+		} else {
+			selectedNames.add(folderName);
+		}
+		selectedNames = new Set(selectedNames);
+	}
+
+	async function handleBatchRemove() {
+		if (selectedNames.size === 0) return;
+		errorMsg = '';
+		batchRemoving = true;
+		const names = [...selectedNames];
+		exitSelectMode();
+		try {
+			const result = await removeFromGarminBatch(names);
+			if (result.failed.length > 0) {
+				errorMsg = `Failed to remove ${result.failed.length} episode(s): ${result.failed.map((f) => f.folder_name).join(', ')}`;
+			}
+		} catch (e: any) {
+			errorMsg = e?.message ?? String(e);
+		} finally {
+			batchRemoving = false;
+		}
+	}
 
 	function normalizeName(name: string): string {
 		return name
@@ -50,25 +91,48 @@
 	{#if errorMsg}
 		<div class="error">{errorMsg}</div>
 	{/if}
+	{#if selectMode}
+		<div class="select-bar">
+			<button class="btn btn-danger" onclick={handleBatchRemove} disabled={selectedNames.size === 0 || batchRemoving}>
+				{batchRemoving ? 'Removing...' : `Remove (${selectedNames.size})`}
+			</button>
+			<button class="btn btn-outline" onclick={exitSelectMode} disabled={batchRemoving}>Cancel</button>
+		</div>
+	{:else}
+		<div class="select-toggle">
+			<button class="btn btn-outline" onclick={enterSelectMode}>Select</button>
+		</div>
+	{/if}
 	{#each deviceOnlyEpisodes as ep (ep.folder_name)}
-		<EpisodeCard
-			title={ep.folder_name}
-			contentType={ep.location === 'Podcasts' ? 'podcast' : ep.location === 'Audiobooks' ? 'audiobook' : 'music'}
-			subtitle={formatSize(ep.total_size_bytes)}
-			syncStatus="synced"
-			statusTooltip="On watch (not in library)"
-		>
-			{#snippet actions()}
-				<button
-					class="btn-icon"
-					onclick={() => handleRemove(ep.folder_name)}
-					disabled={removingId !== null}
-					title="Remove from watch"
-				>
-					{removingId === ep.folder_name ? '...' : '\u2715'}
-				</button>
-			{/snippet}
-		</EpisodeCard>
+		{#if selectMode}
+			<EpisodeCard
+				title={ep.folder_name}
+				contentType={ep.location === 'Podcasts' ? 'podcast' : ep.location === 'Audiobooks' ? 'audiobook' : 'music'}
+				subtitle={formatSize(ep.total_size_bytes)}
+				selectable={true}
+				selected={selectedNames.has(ep.folder_name)}
+				onToggle={() => toggleSelected(ep.folder_name)}
+			/>
+		{:else}
+			<EpisodeCard
+				title={ep.folder_name}
+				contentType={ep.location === 'Podcasts' ? 'podcast' : ep.location === 'Audiobooks' ? 'audiobook' : 'music'}
+				subtitle={formatSize(ep.total_size_bytes)}
+				syncStatus="synced"
+				statusTooltip="On watch (not in library)"
+			>
+				{#snippet actions()}
+					<button
+						class="btn-icon"
+						onclick={() => handleRemove(ep.folder_name)}
+						disabled={removingId !== null}
+						title="Remove from watch"
+					>
+						{removingId === ep.folder_name ? '...' : '\u2715'}
+					</button>
+				{/snippet}
+			</EpisodeCard>
+		{/if}
 	{/each}
 {/if}
 

@@ -89,6 +89,17 @@ export async function cancelAndRemove(videoId: string) {
 	await removeEpisode(videoId);
 }
 
+export async function removeEpisodes(videoIds: string[]) {
+	await call('remove_episodes', { videoIds });
+	await refreshLibrary();
+}
+
+export async function cancelAndRemoveMultiple(videoIds: string[]) {
+	await call('cancel');
+	await call('remove_episodes', { videoIds });
+	await refreshLibrary();
+}
+
 export async function listShows(): Promise<ShowInfo[]> {
 	const result = await call<ListShowsResult>('list_shows');
 	return result.shows;

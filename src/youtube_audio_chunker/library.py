@@ -123,6 +123,12 @@ def remove_episode(library: Library, video_id: str) -> Library:
     return library
 
 
+def remove_episodes(library: Library, video_ids: set[str]) -> Library:
+    library.queue = [e for e in library.queue if e.video_id not in video_ids]
+    library.downloaded = [e for e in library.downloaded if e.video_id not in video_ids]
+    return library
+
+
 def rename_show(library: Library, old_name: str, new_name: str) -> int:
     """Rename a show across all queue and downloaded entries. Returns count updated."""
     count = 0
