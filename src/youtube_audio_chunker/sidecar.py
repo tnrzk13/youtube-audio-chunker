@@ -126,6 +126,7 @@ def _load_dotenv() -> None:
 
 def main() -> None:
     """Read JSON-RPC requests from stdin, dispatch, write responses to stdout."""
+    global _confirm_result
     _load_dotenv()
     for line in sys.stdin:
         line = line.strip()
@@ -135,6 +136,16 @@ def main() -> None:
             request = json.loads(line)
         except json.JSONDecodeError as exc:
             _write_error(None, PARSE_ERROR, f"Parse error: {exc}")
+            continue
+
+        # Check if this is a confirmation response for a pending reverse request
+        if (
+            _confirm_request_id is not None
+            and request.get("id") == _confirm_request_id
+            and "result" in request
+        ):
+            _confirm_result = request["result"]
+            _confirm_event.set()
             continue
 
         _dispatch(request)
@@ -540,14 +551,20 @@ def _notify_progress(
 
 _NEXT_REVERSE_ID = 1000
 _reverse_lock = threading.Lock()
+_confirm_event = threading.Event()
+_confirm_result: bool = False
+_confirm_request_id: int | None = None
 
 
 def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
-    """Send a reverse JSON-RPC request to the frontend for user confirmation."""
-    global _NEXT_REVERSE_ID
+    """Send a reverse JSON-RPC request and wait for main loop to relay the response."""
+    global _NEXT_REVERSE_ID, _confirm_result, _confirm_request_id
     with _reverse_lock:
         request_id = _NEXT_REVERSE_ID
         _NEXT_REVERSE_ID += 1
+
+    _confirm_event.clear()
+    _confirm_request_id = request_id
 
     request = {
         "jsonrpc": "2.0",
@@ -559,20 +576,10 @@ def _request_confirm_removal(episodes: list[dict], deficit_bytes: int) -> bool:
         sys.stdout.write(json.dumps(request) + "\n")
         sys.stdout.flush()
 
-    # Read the response from stdin
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            response = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        if response.get("id") == request_id:
-            return response.get("result", False)
-
-    return False
+    # Wait for main() to signal the response (5 min timeout)
+    _confirm_event.wait(timeout=300)
+    _confirm_request_id = None
+    return _confirm_result
 
 
 # --- Feed methods ---
