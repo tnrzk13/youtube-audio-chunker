@@ -45,8 +45,8 @@ export function subscribe(callback: ProgressCallback): () => void {
 		import('@tauri-apps/api/event').then(({ listen }) => {
 			listen('sidecar:progress', (event) => callback(event.payload)).then((fn) => {
 				unlisten = fn;
-			});
-		});
+			}).catch(console.error);
+		}).catch(console.error);
 		return () => unlisten?.();
 	}
 
@@ -55,6 +55,9 @@ export function subscribe(callback: ProgressCallback): () => void {
 		try {
 			callback(JSON.parse(event.data));
 		} catch { /* ignore parse errors */ }
+	};
+	source.onerror = () => {
+		console.warn('SSE connection lost');
 	};
 	return () => source.close();
 }

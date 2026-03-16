@@ -19,7 +19,7 @@ from youtube_audio_chunker.auth import (
     disconnect as auth_disconnect,
     get_auth_status,
 )
-from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR, atomic_write_text
+from youtube_audio_chunker.constants import APP_DIR, ContentType, OUTPUT_DIR
 from youtube_audio_chunker.downloader import (
     extract_metadata,
     list_channel_videos,
@@ -77,6 +77,12 @@ from youtube_audio_chunker.discovery import (
     cache_results,
     get_cached_results,
     search_youtube_api,
+)
+from youtube_audio_chunker.settings import (
+    _ENV_TO_SETTINGS,
+    load_settings as _load_settings,
+    save_settings,
+    settings_path as _settings_path,
 )
 from youtube_audio_chunker.topic_extractor import extract_topics_from_titles
 
@@ -488,16 +494,11 @@ def _handle_get_settings(params: dict) -> dict:
 
 def _handle_save_settings(params: dict) -> dict:
     settings = params.get("settings", {})
-    settings_path = _settings_path()
-    atomic_write_text(settings_path, json.dumps(settings, indent=2))
+    save_settings(settings)
     return {"saved": True}
 
 
 # --- Helpers ---
-
-
-def _settings_path() -> Path:
-    return APP_DIR / "settings.json"
 
 
 def _find_folder_name(library: Any, video_id: str) -> str:
@@ -834,24 +835,6 @@ def _maybe_auto_extract_topics(library) -> None:
     thread.start()
 
 
-_ENV_TO_SETTINGS = {
-    "ANTHROPIC_API_KEY": "anthropic_api_key",
-    "OPENAI_API_KEY": "openai_api_key",
-    "YOUTUBE_API_KEY": "youtube_api_key",
-}
-
-
-def _load_settings() -> dict:
-    # Env vars serve as defaults; saved settings override them
-    defaults = {
-        settings_key: val
-        for env_key, settings_key in _ENV_TO_SETTINGS.items()
-        if (val := os.environ.get(env_key))
-    }
-    settings_path = _settings_path()
-    if settings_path.exists():
-        defaults.update(json.loads(settings_path.read_text()))
-    return defaults
 
 
 # --- Method registry ---

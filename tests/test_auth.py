@@ -15,12 +15,14 @@ from youtube_audio_chunker.auth import (
 )
 
 AUTH_MODULE = "youtube_audio_chunker.auth"
+SETTINGS_MODULE = "youtube_audio_chunker.settings"
 
 
 @pytest.fixture
 def app_dir(tmp_path):
     """Redirect APP_DIR to a temp directory for isolation."""
-    with patch(f"{AUTH_MODULE}.APP_DIR", tmp_path):
+    with patch(f"{AUTH_MODULE}.APP_DIR", tmp_path), \
+         patch(f"{SETTINGS_MODULE}.APP_DIR", tmp_path):
         yield tmp_path
 
 
