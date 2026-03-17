@@ -54,6 +54,10 @@ pub fn run() {
             commands::connect_cookies,
             commands::get_auth_status,
             commands::disconnect_auth,
+            commands::extract_topics,
+            commands::search_topic,
+            commands::delete_topic,
+            commands::dismiss_video,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

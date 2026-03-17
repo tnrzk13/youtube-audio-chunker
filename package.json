@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -n api,gui -c blue,green \"python -m youtube_audio_chunker.httpapi --reload\" \"npm --prefix gui run dev -- --port 5173\"",
+    "dev:tauri": "concurrently -n api,tauri -c blue,magenta \"python -m youtube_audio_chunker.httpapi --reload\" \"npm --prefix gui run tauri dev\"",
     "build": "npm --prefix gui run tauri build",
     "gui:install": "npm --prefix gui install"
   },

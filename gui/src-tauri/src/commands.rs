@@ -312,3 +312,45 @@ pub async fn disconnect_auth(
         .call("disconnect_auth", Value::Null)
         .await
 }
+
+#[tauri::command]
+pub async fn extract_topics(
+    sidecar: State<'_, ManagedSidecar>,
+) -> Result<Value, SidecarError> {
+    sidecar
+        .lock()
+        .await
+        .call("extract_topics", Value::Null)
+        .await
+}
+
+#[tauri::command]
+pub async fn search_topic(
+    sidecar: State<'_, ManagedSidecar>,
+    topic_id: String,
+    page_token: Option<String>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({
+        "topic_id": topic_id,
+        "page_token": page_token,
+    });
+    sidecar.lock().await.call("search_topic", params).await
+}
+
+#[tauri::command]
+pub async fn delete_topic(
+    sidecar: State<'_, ManagedSidecar>,
+    topic_id: String,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "topic_id": topic_id });
+    sidecar.lock().await.call("delete_topic", params).await
+}
+
+#[tauri::command]
+pub async fn dismiss_video(
+    sidecar: State<'_, ManagedSidecar>,
+    video_id: String,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "video_id": video_id });
+    sidecar.lock().await.call("dismiss_video", params).await
+}
