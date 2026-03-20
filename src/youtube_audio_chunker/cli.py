@@ -9,7 +9,6 @@ from pathlib import Path
 
 from youtube_audio_chunker.constants import (
     ContentType,
-    DEFAULT_CHUNK_DURATION_SECONDS,
     GARMIN_DIRS,
     LIBRARY_PATH,
     OUTPUT_DIR,
@@ -61,19 +60,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="youtube-audio-chunker",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Download YouTube audio, split into chunks, and sideload to a Garmin watch.",
+        description="Download YouTube audio and sideload to a Garmin watch.",
         epilog=(
             "typical workflow:\n"
             "  1. youtube-audio-chunker add <url>       Queue a video or playlist\n"
-            "  2. youtube-audio-chunker sync             Download, chunk, and transfer to watch\n"
+            "  2. youtube-audio-chunker sync             Download and transfer to watch\n"
             "\n"
             "shortcut (add + sync in one step):\n"
             "  youtube-audio-chunker download <url>\n"
             "\n"
             "content types:\n"
-            "  music       Split into 5-min chunks, stored in MUSIC/ (default)\n"
-            "  podcast     Kept as a single file, stored in Podcasts/\n"
-            "  audiobook   Kept as a single file, stored in Audiobooks/\n"
+            "  music       Stored in Music/ (default)\n"
+            "  podcast     Stored in Podcasts/\n"
+            "  audiobook   Stored in Audiobooks/\n"
             "\n"
             f"library path: {LIBRARY_PATH}\n"
             f"output dir:   {OUTPUT_DIR}\n"
@@ -116,8 +115,8 @@ def _add_add_parser(subparsers) -> None:
         "--type",
         choices=[t.value for t in ContentType],
         default=ContentType.MUSIC.value,
-        help="Content type: music (chunked, MUSIC/), podcast (single, Podcasts/), "
-        "audiobook (single, Audiobooks/). Default: music",
+        help="Content type: music (Music/), podcast (Podcasts/), "
+        "audiobook (Audiobooks/). Default: music",
     )
     p.add_argument(
         "--show", metavar="NAME", default=None,
@@ -129,28 +128,19 @@ def _add_sync_parser(subparsers) -> None:
     p = subparsers.add_parser(
         "sync",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        help="Download queued items, chunk, and transfer to watch",
+        help="Download queued items and transfer to watch",
         description=(
-            "Process all queued URLs: download audio, split into chunks\n"
-            "(music only), tag with ID3 metadata, and copy to Garmin watch."
+            "Process all queued URLs: download audio, tag with ID3 metadata,\n"
+            "and copy to Garmin watch."
         ),
         epilog=(
             "examples:\n"
             "  youtube-audio-chunker sync\n"
             "  youtube-audio-chunker sync --no-transfer\n"
-            "  youtube-audio-chunker sync --chunk-duration 600 --artist 'Joe Rogan'"
+            "  youtube-audio-chunker sync --artist 'Joe Rogan'"
         ),
     )
-    p.add_argument(
-        "--chunk-duration", type=int, default=None, metavar="SECONDS",
-        help=f"chunk duration in seconds "
-        f"(default: {DEFAULT_CHUNK_DURATION_SECONDS} for music, disabled for podcast/audiobook)",
-    )
     p.add_argument("--artist", metavar="NAME", help="override artist name for ID3 tags")
-    p.add_argument(
-        "--keep-full", action="store_true",
-        help="keep the full audio file after chunking",
-    )
     p.add_argument(
         "--no-transfer", action="store_true",
         help="download and chunk but skip copying to watch",
@@ -164,7 +154,7 @@ def _add_download_parser(subparsers) -> None:
         help="Add URLs and immediately process (add + sync)",
         description=(
             "Shortcut that combines 'add' and 'sync' in one step.\n"
-            "Queues the given URLs, then downloads, chunks, and transfers."
+            "Queues the given URLs, then downloads and transfers."
         ),
         epilog=(
             "examples:\n"
@@ -177,26 +167,17 @@ def _add_download_parser(subparsers) -> None:
         "--type",
         choices=[t.value for t in ContentType],
         default=ContentType.MUSIC.value,
-        help="Content type: music (chunked, MUSIC/), podcast (single, Podcasts/), "
-        "audiobook (single, Audiobooks/). Default: music",
+        help="Content type: music (Music/), podcast (Podcasts/), "
+        "audiobook (Audiobooks/). Default: music",
     )
     p.add_argument(
         "--show", metavar="NAME", default=None,
         help="show/series name for grouping (default: auto-detect from channel)",
     )
-    p.add_argument(
-        "--chunk-duration", type=int, default=None, metavar="SECONDS",
-        help=f"chunk duration in seconds "
-        f"(default: {DEFAULT_CHUNK_DURATION_SECONDS} for music, disabled for podcast/audiobook)",
-    )
     p.add_argument("--artist", metavar="NAME", help="override artist name for ID3 tags")
     p.add_argument(
-        "--keep-full", action="store_true",
-        help="keep the full audio file after chunking",
-    )
-    p.add_argument(
         "--no-transfer", action="store_true",
-        help="download and chunk but skip copying to watch",
+        help="download and skip copying to watch",
     )
 
 
@@ -331,9 +312,7 @@ def _handle_transfer(_args) -> None:
 
 def _handle_sync(args) -> None:
     opts = SyncOptions(
-        chunk_duration_seconds=args.chunk_duration,
         artist=args.artist,
-        keep_full=args.keep_full,
         no_transfer=args.no_transfer,
     )
     process_queue(opts)
@@ -374,8 +353,6 @@ def _print_local(library) -> None:
         parts = [content_type]
         if ep.show_name:
             parts.insert(0, ep.show_name)
-        if ep.chunk_count > 1:
-            parts.append(f"{ep.chunk_count} chunks")
         parts.append(f"{size_mb:.1f} MB")
         parts.append(synced)
         detail = ", ".join(parts)

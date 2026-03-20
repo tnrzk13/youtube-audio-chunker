@@ -35,18 +35,15 @@ class TestBuildParser:
     def test_sync_defaults(self, parser):
         args = parser.parse_args(["sync"])
         assert args.command == "sync"
-        assert args.chunk_duration is None
         assert args.no_transfer is False
 
     def test_sync_with_options(self, parser):
         args = parser.parse_args([
-            "sync", "--chunk-duration", "600",
+            "sync",
             "--artist", "Host Name",
-            "--keep-full", "--no-transfer",
+            "--no-transfer",
         ])
-        assert args.chunk_duration == 600
         assert args.artist == "Host Name"
-        assert args.keep_full is True
         assert args.no_transfer is True
 
     def test_download_show_flag(self, parser):
@@ -121,7 +118,6 @@ class TestSyncCommand:
         mock_process.assert_called_once()
         opts = mock_process.call_args[0][0]
         assert opts.no_transfer is True
-        assert opts.chunk_duration_seconds is None
 
 
 class TestListCommand:
