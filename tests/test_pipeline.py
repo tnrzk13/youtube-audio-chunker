@@ -39,34 +39,20 @@ def download_result(tmp_path):
     )
 
 
-@pytest.fixture
-def chunk_files(tmp_path):
-    output = tmp_path / "output" / "Test-Video"
-    output.mkdir(parents=True)
-    chunks = []
-    for i in range(1, 4):
-        p = output / f"{i:02d}_Test-Video.mp3"
-        p.write_bytes(b"\x00" * 500)
-        chunks.append(p)
-    return chunks
-
-
 MODULE = "youtube_audio_chunker.pipeline"
 
 
 class TestProcessQueue:
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_processes_queued_entries(
-        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
-        library_with_queue, download_result, chunk_files, tmp_path,
+        self, mock_load, mock_download, mock_tag_single, mock_save,
+        library_with_queue, download_result, tmp_path,
     ):
         mock_load.return_value = library_with_queue
         mock_download.return_value = [download_result]
-        mock_split.return_value = chunk_files
 
         opts = SyncOptions(
             library_path=tmp_path / "library.json",
@@ -76,21 +62,18 @@ class TestProcessQueue:
         process_queue(opts)
 
         mock_download.assert_called_once()
-        mock_split.assert_called_once()
-        mock_tag.assert_called_once()
+        mock_tag_single.assert_called_once()
 
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_moves_entry_to_downloaded_after_processing(
-        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
-        library_with_queue, download_result, chunk_files, tmp_path,
+        self, mock_load, mock_download, mock_tag_single, mock_save,
+        library_with_queue, download_result, tmp_path,
     ):
         mock_load.return_value = library_with_queue
         mock_download.return_value = [download_result]
-        mock_split.return_value = chunk_files
 
         opts = SyncOptions(
             library_path=tmp_path / "library.json",
@@ -123,18 +106,16 @@ class TestProcessQueue:
     @patch(f"{MODULE}.find_garmin_mount")
     @patch(f"{MODULE}.get_available_space_bytes")
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_transfers_to_garmin_when_requested(
-        self, mock_load, mock_download, mock_split, mock_tag,
+        self, mock_load, mock_download, mock_tag_single,
         mock_save, mock_space, mock_find, mock_copy,
-        library_with_queue, download_result, chunk_files, tmp_path,
+        library_with_queue, download_result, tmp_path,
     ):
         mock_load.return_value = library_with_queue
         mock_download.return_value = [download_result]
-        mock_split.return_value = chunk_files
         mock_find.return_value = tmp_path / "garmin"
         mock_space.return_value = 1_000_000_000
         mock_copy.return_value = tmp_path / "garmin" / "MUSIC" / "Test-Video"
@@ -151,18 +132,16 @@ class TestProcessQueue:
 
     @patch(f"{MODULE}.find_garmin_mount")
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_skips_transfer_when_garmin_not_found(
-        self, mock_load, mock_download, mock_split, mock_tag,
+        self, mock_load, mock_download, mock_tag_single,
         mock_save, mock_find,
-        library_with_queue, download_result, chunk_files, tmp_path,
+        library_with_queue, download_result, tmp_path,
     ):
         mock_load.return_value = library_with_queue
         mock_download.return_value = [download_result]
-        mock_split.return_value = chunk_files
         mock_find.return_value = None
 
         opts = SyncOptions(
@@ -179,19 +158,17 @@ class TestProcessQueue:
     @patch(f"{MODULE}.get_available_space_bytes")
     @patch(f"{MODULE}.find_garmin_mount")
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_auto_cleanup_prompts_user(
-        self, mock_load, mock_download, mock_split, mock_tag,
+        self, mock_load, mock_download, mock_tag_single,
         mock_save, mock_find, mock_space, mock_list, mock_copy,
         mock_remove,
-        library_with_queue, download_result, chunk_files, tmp_path,
+        library_with_queue, download_result, tmp_path,
     ):
         mock_load.return_value = library_with_queue
         mock_download.return_value = [download_result]
-        mock_split.return_value = chunk_files
         garmin_mount = tmp_path / "garmin"
         mock_find.return_value = garmin_mount
         # First call: not enough space. After removal: enough space.
@@ -222,18 +199,16 @@ class TestProcessQueue:
     @patch(f"{MODULE}.get_available_space_bytes")
     @patch(f"{MODULE}.find_garmin_mount")
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_auto_cleanup_skips_transfer_when_declined(
-        self, mock_load, mock_download, mock_split, mock_tag,
+        self, mock_load, mock_download, mock_tag_single,
         mock_save, mock_find, mock_space, mock_list, mock_copy,
-        library_with_queue, download_result, chunk_files, tmp_path,
+        library_with_queue, download_result, tmp_path,
     ):
         mock_load.return_value = library_with_queue
         mock_download.return_value = [download_result]
-        mock_split.return_value = chunk_files
         mock_find.return_value = tmp_path / "garmin"
         mock_space.return_value = 100  # Always too small
         mock_list.return_value = [
@@ -254,12 +229,11 @@ class TestProcessQueue:
 
 class TestShowNameFlow:
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_show_name_flows_from_download_to_library(
-        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
+        self, mock_load, mock_download, mock_tag_single, mock_save,
         tmp_path,
     ):
         entry = QueueEntry(
@@ -279,13 +253,6 @@ class TestShowNameFlow:
         )
         mock_download.return_value = [dl]
 
-        output = tmp_path / "output" / "Test-Video"
-        output.mkdir(parents=True)
-        chunks = [output / f"{i:02d}_Test-Video.mp3" for i in range(1, 4)]
-        for c in chunks:
-            c.write_bytes(b"\x00" * 500)
-        mock_split.return_value = chunks
-
         opts = SyncOptions(
             library_path=tmp_path / "library.json",
             output_dir=tmp_path / "output",
@@ -299,12 +266,11 @@ class TestShowNameFlow:
         assert ep.artist == "Channel"
 
     @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
+    @patch(f"{MODULE}.tag_single")
     @patch(f"{MODULE}.download_audio")
     @patch(f"{MODULE}.load_library")
     def test_queue_entry_show_name_takes_precedence(
-        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
+        self, mock_load, mock_download, mock_tag_single, mock_save,
         tmp_path,
     ):
         entry = QueueEntry(
@@ -325,13 +291,6 @@ class TestShowNameFlow:
         )
         mock_download.return_value = [dl]
 
-        output = tmp_path / "output" / "Test-Video"
-        output.mkdir(parents=True)
-        chunks = [output / f"{i:02d}_Test-Video.mp3" for i in range(1, 4)]
-        for c in chunks:
-            c.write_bytes(b"\x00" * 500)
-        mock_split.return_value = chunks
-
         opts = SyncOptions(
             library_path=tmp_path / "library.json",
             output_dir=tmp_path / "output",
@@ -342,58 +301,6 @@ class TestShowNameFlow:
         saved_lib = mock_save.call_args[0][0]
         ep = saved_lib.downloaded[0]
         assert ep.show_name == "My Custom Show"
-
-    @patch(f"{MODULE}.save_library")
-    @patch(f"{MODULE}.tag_chunks")
-    @patch(f"{MODULE}.split_audio")
-    @patch(f"{MODULE}.download_audio")
-    @patch(f"{MODULE}.load_library")
-    def test_tag_chunks_receives_album_and_track_offset(
-        self, mock_load, mock_download, mock_split, mock_tag, mock_save,
-        tmp_path,
-    ):
-        """Music episodes with a show_name should pass album and track_offset to tagger."""
-        # Existing downloaded music episode with same show
-        existing_ep = DownloadedEpisode(
-            video_id="prev", url="u", title="Previous",
-            folder_name="Previous", chunk_count=5,
-            total_size_bytes=5000, downloaded_at="t", synced_at=None,
-            content_type="music", show_name="The Channel",
-        )
-        entry = QueueEntry(
-            video_id="abc123",
-            url="https://youtube.com/watch?v=abc123",
-            title="Test Video",
-            added_at="2026-03-01T12:00:00+00:00",
-        )
-        library = Library(queue=[entry], downloaded=[existing_ep])
-        mock_load.return_value = library
-
-        audio = tmp_path / "Test-Video.mp3"
-        audio.write_bytes(b"\x00" * 1000)
-        dl = DownloadResult(
-            video_id="abc123", title="Test Video", artist="Channel",
-            audio_path=audio, folder_name="Test-Video", channel="The Channel",
-        )
-        mock_download.return_value = [dl]
-
-        output = tmp_path / "output" / "Test-Video"
-        output.mkdir(parents=True)
-        chunks = [output / f"{i:02d}_Test-Video.mp3" for i in range(1, 4)]
-        for c in chunks:
-            c.write_bytes(b"\x00" * 500)
-        mock_split.return_value = chunks
-
-        opts = SyncOptions(
-            library_path=tmp_path / "library.json",
-            output_dir=tmp_path / "output",
-            no_transfer=True,
-        )
-        process_queue(opts)
-
-        tag_call = mock_tag.call_args
-        assert tag_call.kwargs.get("album") == "The Channel"
-        assert tag_call.kwargs.get("track_offset") == 100
 
 
 class TestEditEpisode:

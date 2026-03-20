@@ -28,10 +28,10 @@ class DownloadedEpisode:
     url: str
     title: str
     folder_name: str
-    chunk_count: int
     total_size_bytes: int
     downloaded_at: str
     synced_at: str | None
+    chunk_count: int = 1
     content_type: str = ContentType.MUSIC.value
     show_name: str | None = None
     artist: str | None = None
