@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "youtube-audio-chunker"
 version = "0.1.0"
-description = "Download YouTube audio, split into chunks, and sideload to Garmin watches"
+description = "Download YouTube audio and sideload to Garmin watches"
 requires-python = ">=3.11"
 dependencies = [
     "yt-dlp>=2024.0",

@@ -1,1 +1,1 @@
-"""Download YouTube audio, split into chunks, and sideload to Garmin watches."""
+"""Download YouTube audio and sideload to Garmin watches."""
