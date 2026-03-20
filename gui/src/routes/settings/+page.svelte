@@ -10,9 +10,7 @@
 	const theme = getTheme();
 
 	let defaultContentType = $state<ContentType>('podcast');
-	let chunkDuration = $state(300);
 	let defaultArtist = $state('');
-	let keepFull = $state(false);
 	let searchLayoutWidthPercent = $state(75);
 	let searchLayoutSplitPercent = $state(50);
 	let saving = $state(false);
@@ -51,9 +49,7 @@
 	onMount(async () => {
 		await refreshSettings();
 		defaultContentType = (settings.data.default_content_type as ContentType) ?? 'podcast';
-		chunkDuration = settings.data.chunk_duration_seconds ?? 300;
 		defaultArtist = settings.data.default_artist ?? '';
-		keepFull = settings.data.keep_full ?? false;
 		searchLayoutWidthPercent = settings.data.search_layout_width_percent ?? 75;
 		searchLayoutSplitPercent = settings.data.search_layout_split_percent ?? 50;
 		browserOverride = settings.data.youtube_cookies_browser ?? '';
@@ -109,9 +105,7 @@
 		}
 		await saveSettings({
 			default_content_type: defaultContentType,
-			chunk_duration_seconds: chunkDuration,
 			default_artist: defaultArtist || undefined,
-			keep_full: keepFull,
 			search_layout_width_percent: searchLayoutWidthPercent,
 			search_layout_split_percent: searchLayoutSplitPercent,
 			topic_provider: topicProvider,
@@ -141,23 +135,12 @@
 		<ContentTypeSelect id="default-content-type" bind:value={defaultContentType} />
 	</div>
 
-	<div class="field">
-		<label for="chunk-duration">Chunk duration (seconds)</label>
-		<input id="chunk-duration" type="number" bind:value={chunkDuration} min="30" step="30" />
-		<p class="hint">Audio is split into chunks of this length. Default: 300 (5 minutes).</p>
-	</div>
 
 	<div class="field">
 		<label for="default-artist">Default artist name</label>
 		<input id="default-artist" type="text" bind:value={defaultArtist} placeholder="Leave blank to use uploader" />
 	</div>
 
-	<div class="field">
-		<label>
-			<input type="checkbox" bind:checked={keepFull} />
-			Keep full audio file after splitting
-		</label>
-	</div>
 
 	<h2 class="section-heading">Search Layout</h2>
 
@@ -297,7 +280,7 @@
 	<div class="about">
 		<h2>About</h2>
 		<p class="about-name">youtube-audio-chunker <span class="about-version">v0.1.0</span></p>
-		<p class="about-desc">Download YouTube audio, split into navigable chunks, and sideload to Garmin watches.</p>
+		<p class="about-desc">Download YouTube audio and sideload to Garmin watches.</p>
 		<p class="about-desc">Tested on Garmin Forerunner 245 Music. Should work with any music-capable Garmin watch.</p>
 		<p class="about-author">
 			Built by <a href="https://www.tonykwok.info/" target="_blank" rel="noopener">Tony Kwok</a>

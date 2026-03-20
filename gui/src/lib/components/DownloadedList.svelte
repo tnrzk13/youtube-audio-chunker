@@ -216,9 +216,8 @@
 
 	function subtitle(ep: DownloadedEpisode): string {
 		const size = formatSize(ep.total_size_bytes);
-		const chunks = ep.chunk_count === 1 ? '1 file' : `${ep.chunk_count} chunks`;
 		const duration = ep.duration_seconds ? formatDuration(ep.duration_seconds) : '';
-		return duration ? `${duration} - ${chunks} - ${size}` : `${chunks} - ${size}`;
+		return duration ? `${duration} - ${size}` : size;
 	}
 
 	function startEditing(ep: DownloadedEpisode) {
@@ -485,6 +484,7 @@
 		letter-spacing: 0.05em;
 		color: var(--color-text-hint);
 		padding: 0.5rem 0.75rem 0.2rem;
+		min-height: 1.75rem;
 		cursor: pointer;
 		text-align: left;
 	}
@@ -533,6 +533,7 @@
 		font-weight: 600;
 		color: var(--color-text);
 		padding: 0.45rem 0.75rem 0.15rem;
+		min-height: 1.75rem;
 		cursor: pointer;
 		text-align: left;
 	}

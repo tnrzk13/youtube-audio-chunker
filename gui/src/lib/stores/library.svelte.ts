@@ -45,9 +45,7 @@ export async function removeEpisode(videoId: string) {
 }
 
 export async function processQueue(options: {
-	chunkDurationSeconds?: number;
 	artist?: string;
-	keepFull?: boolean;
 	noTransfer?: boolean;
 } = {}): Promise<ProcessResult> {
 	const result = await call<ProcessResult>('process_queue', options);

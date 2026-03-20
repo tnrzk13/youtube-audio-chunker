@@ -14,7 +14,7 @@ export interface DownloadedEpisode {
 	url: string;
 	title: string;
 	folder_name: string;
-	chunk_count: number;
+	chunk_count?: number;
 	total_size_bytes: number;
 	downloaded_at: string;
 	synced_at: string | null;
