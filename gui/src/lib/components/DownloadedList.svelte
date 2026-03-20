@@ -531,6 +531,9 @@
 		border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 		background: var(--color-bg-hover);
 	}
+	.show-group :global(.card) {
+		background: var(--color-bg-panel);
+	}
 	.show-header {
 		display: flex;
 		align-items: center;
