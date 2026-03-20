@@ -88,6 +88,21 @@
 {#if entries.length > 0}
 	{#if selectMode}
 		<div class="select-bar">
+			<label class="select-all">
+				<input
+					type="checkbox"
+					checked={selectedIds.size === entries.length && entries.length > 0}
+					indeterminate={selectedIds.size > 0 && selectedIds.size < entries.length}
+					onchange={() => {
+						if (selectedIds.size === entries.length) {
+							selectedIds = new Set();
+						} else {
+							selectedIds = new Set(entries.map(e => e.video_id));
+						}
+					}}
+				/>
+				All
+			</label>
 			<button class="btn btn-danger" onclick={handleBatchRemove} disabled={selectedIds.size === 0 || batchRemoving}>
 				{batchRemoving ? 'Removing...' : `Remove (${selectedIds.size})`}
 			</button>

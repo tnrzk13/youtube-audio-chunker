@@ -72,7 +72,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.5rem 0.75rem;
+		padding: 0.5rem 0.75rem 0.5rem 2.25rem;
 		border-bottom: 1px solid var(--color-border-subtle);
 		gap: 0.5rem;
 		transition: background 0.15s;
@@ -144,6 +144,8 @@
 		font: inherit;
 		text-align: left;
 		width: 100%;
+		border: none;
+		border-bottom: 1px solid var(--color-border-subtle);
 	}
 	.card-selectable:hover,
 	.card-selectable:focus-visible {
@@ -153,7 +155,10 @@
 		background: var(--color-primary-light);
 	}
 	.select-checkbox {
-		flex-shrink: 0;
+		position: absolute;
+		left: 0.4rem;
+		top: 50%;
+		transform: translateY(-50%);
 		width: 16px;
 		height: 16px;
 		accent-color: var(--color-primary);

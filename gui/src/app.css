@@ -321,7 +321,8 @@
 .select-toggle {
   display: flex;
   justify-content: flex-end;
-  padding: 0.3rem 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid transparent;
 }
 
 .select-bar {
@@ -334,6 +335,16 @@
   padding: 0.4rem 0.75rem;
   background: var(--color-bg-panel);
   border-bottom: 1px solid var(--color-border);
+}
+
+.select-all {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  margin-right: auto;
 }
 
 .card-status-synced {

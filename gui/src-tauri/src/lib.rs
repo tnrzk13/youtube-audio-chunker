@@ -30,6 +30,7 @@ pub fn run() {
             commands::get_garmin_status,
             commands::add_to_queue,
             commands::remove_episode,
+            commands::remove_episodes,
             commands::remove_from_garmin,
             commands::process_queue,
             commands::cancel,

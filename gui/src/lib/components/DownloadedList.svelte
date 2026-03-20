@@ -414,7 +414,7 @@
 					{#if selectMode}
 						{@const gIds = groupEpisodeIds(group)}
 						{@const gSelected = gIds.filter(id => selectedIds.has(id)).length}
-						<div class="show-header" style:align-items="center">
+						<div class="show-header">
 							<input
 								type="checkbox"
 								checked={gSelected === gIds.length && gIds.length > 0}
@@ -483,10 +483,11 @@
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		color: var(--color-text-hint);
-		padding: 0.5rem 0.75rem 0.2rem;
-		min-height: 1.75rem;
+		padding: 0.35rem 0.75rem 0.35rem 2rem;
+		min-height: 2rem;
 		cursor: pointer;
 		text-align: left;
+		position: relative;
 	}
 	.section-header:first-child {
 		border-top: none;
@@ -512,6 +513,14 @@
 	.header-collapse-btn:hover {
 		color: var(--color-primary);
 	}
+	.section-header input[type="checkbox"],
+	.show-header input[type="checkbox"] {
+		position: absolute;
+		left: 0.3rem;
+		top: 50%;
+		transform: translateY(-50%);
+		margin: 0;
+	}
 	.section-count {
 		font-weight: 400;
 		color: var(--color-text-muted);
@@ -524,7 +533,7 @@
 	}
 	.show-header {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		gap: 0.4rem;
 		width: 100%;
 		background: none;
@@ -532,10 +541,11 @@
 		font-size: var(--font-size-sm);
 		font-weight: 600;
 		color: var(--color-text);
-		padding: 0.45rem 0.75rem 0.15rem;
-		min-height: 1.75rem;
+		padding: 0.3rem 0.75rem 0.3rem 2rem;
+		min-height: 2rem;
 		cursor: pointer;
 		text-align: left;
+		position: relative;
 	}
 	.show-header:hover {
 		color: var(--color-primary);
