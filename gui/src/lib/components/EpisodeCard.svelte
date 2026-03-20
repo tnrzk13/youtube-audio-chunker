@@ -159,8 +159,8 @@
 		left: 0.4rem;
 		top: 50%;
 		transform: translateY(-50%);
-		width: 16px;
-		height: 16px;
+		width: 13px;
+		height: 13px;
 		accent-color: var(--color-primary);
 		pointer-events: none;
 	}
