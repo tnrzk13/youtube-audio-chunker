@@ -32,7 +32,6 @@ from youtube_audio_chunker.errors import (
     DependencyError,
     DownloadError,
     GarminError,
-    SplitError,
 )
 from youtube_audio_chunker.garmin import (
     copy_to_garmin,
@@ -88,7 +87,6 @@ from youtube_audio_chunker.topic_extractor import extract_topics_from_titles
 ERROR_CODES = {
     DependencyError: -32001,
     DownloadError: -32002,
-    SplitError: -32003,
     GarminError: -32004,
 }
 

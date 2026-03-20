@@ -4,7 +4,6 @@ import tempfile
 from enum import Enum
 from pathlib import Path
 
-DEFAULT_CHUNK_DURATION_SECONDS = 300
 DEFAULT_AUDIO_BITRATE = "128k"
 DEFAULT_AUDIO_FORMAT = "mp3"
 

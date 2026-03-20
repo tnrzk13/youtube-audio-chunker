@@ -10,9 +10,5 @@ class DownloadError(ChunkerError):
     """Audio download failed."""
 
 
-class SplitError(ChunkerError):
-    """Audio splitting failed."""
-
-
 class GarminError(ChunkerError):
     """Garmin watch detection or file operation failed."""
