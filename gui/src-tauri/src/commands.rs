@@ -48,6 +48,15 @@ pub async fn remove_episode(
 }
 
 #[tauri::command]
+pub async fn remove_episodes(
+    sidecar: State<'_, ManagedSidecar>,
+    video_ids: Vec<String>,
+) -> Result<Value, SidecarError> {
+    let params = serde_json::json!({ "video_ids": video_ids });
+    sidecar.lock().await.call("remove_episodes", params).await
+}
+
+#[tauri::command]
 pub async fn remove_from_garmin(
     sidecar: State<'_, ManagedSidecar>,
     folder_name: String,
@@ -72,15 +81,11 @@ pub async fn transfer_episode(
 #[tauri::command]
 pub async fn process_queue(
     sidecar: State<'_, ManagedSidecar>,
-    chunk_duration_seconds: Option<u32>,
     artist: Option<String>,
-    keep_full: Option<bool>,
     no_transfer: Option<bool>,
 ) -> Result<Value, SidecarError> {
     let params = serde_json::json!({
-        "chunk_duration_seconds": chunk_duration_seconds,
         "artist": artist,
-        "keep_full": keep_full.unwrap_or(false),
         "no_transfer": no_transfer.unwrap_or(false),
     });
     sidecar.lock().await.call("process_queue", params).await

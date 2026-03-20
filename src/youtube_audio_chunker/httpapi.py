@@ -134,9 +134,7 @@ def main(port: int = DEFAULT_PORT) -> None:
     def _handle_process_queue_with_sse(params: dict) -> dict:
         from youtube_audio_chunker.pipeline import SyncOptions
         options = SyncOptions(
-            chunk_duration_seconds=params.get("chunk_duration_seconds"),
             artist=params.get("artist"),
-            keep_full=params.get("keep_full", False),
             no_transfer=params.get("no_transfer", False),
         )
         callbacks = PipelineCallbacks(

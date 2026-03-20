@@ -412,9 +412,7 @@ def _handle_remove_from_garmin_batch(params: dict) -> dict:
 
 def _handle_process_queue(params: dict) -> dict:
     options = SyncOptions(
-        chunk_duration_seconds=params.get("chunk_duration_seconds"),
         artist=params.get("artist"),
-        keep_full=params.get("keep_full", False),
         no_transfer=params.get("no_transfer", False),
     )
     callbacks = PipelineCallbacks(
