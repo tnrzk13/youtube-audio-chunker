@@ -12,6 +12,7 @@
 	import PlaylistGrid from '$lib/components/PlaylistGrid.svelte';
 	import DiscoverView from '$lib/components/DiscoverView.svelte';
 	import AuthModal from '$lib/components/AuthModal.svelte';
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import { getLibrary, refreshLibrary, startProcessing, getAuthStatus, disconnectAuth, listSubscriptions, listHomeFeed, listLikedVideos, listPlaylistVideos } from '$lib/stores/library.svelte';
 	import { getGarminStatus, refreshGarmin, transferUnsynced } from '$lib/stores/garmin.svelte';
 	import { getProgress, setActive, initProgressListener } from '$lib/stores/progress.svelte';
@@ -247,6 +248,7 @@
 <ProgressPanel />
 <SpaceManagementDialog />
 <AuthModal bind:open={authModalOpen} onSuccess={handleAuthSuccess} />
+<ToastContainer />
 
 <style>
 	.toolbar {

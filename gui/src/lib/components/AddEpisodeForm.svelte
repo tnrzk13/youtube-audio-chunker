@@ -3,6 +3,7 @@
 	import { addToQueue, startProcessing, searchYouTube, listChannelVideos, getLibrary } from '$lib/stores/library.svelte';
 	import { getSettings, refreshSettings } from '$lib/stores/settings.svelte';
 	import { getGarminStatus } from '$lib/stores/garmin.svelte';
+	import { addToast } from '$lib/stores/toasts.svelte';
 	import ContentTypeSelect from './ContentTypeSelect.svelte';
 	import type { ContentType, SearchResult, ChannelVideo } from '$lib/types';
 	import { formatDuration } from '$lib/format';
@@ -25,7 +26,6 @@
 
 	let urlInput = $state('');
 	let contentType = $state<ContentType>('podcast');
-	let submitting = $state(false);
 	let errorMsg = $state('');
 
 	let searchResults = $state<SearchResult[]>([]);
@@ -75,13 +75,13 @@
 		if (!input) return;
 
 		if (looksLikeUrl(input)) {
-			await handleUrlSubmit();
+			handleUrlSubmit();
 		} else {
 			await handleSearch(input);
 		}
 	}
 
-	async function handleUrlSubmit() {
+	function handleUrlSubmit() {
 		const urls = urlInput
 			.split('\n')
 			.map((u) => u.trim())
@@ -89,21 +89,22 @@
 
 		if (urls.length === 0) return;
 
-		submitting = true;
-		errorMsg = '';
-		try {
-			const result = await addToQueue(urls, contentType);
-			if (result.skipped.length > 0 && result.added.length === 0) {
-				errorMsg = `Skipped (already exists): ${result.skipped.join(', ')}`;
-				return;
+		const ct = contentType;
+		const noTransfer = !garmin.data.connected;
+		urlInput = '';
+
+		void (async () => {
+			try {
+				const result = await addToQueue(urls, ct);
+				if (result.skipped.length > 0 && result.added.length === 0) {
+					addToast(`Skipped (already exists): ${result.skipped.join(', ')}`, 'warning');
+					return;
+				}
+				startProcessing({ noTransfer });
+			} catch (e: any) {
+				addToast(e?.message ?? String(e), 'error');
 			}
-			urlInput = '';
-			startProcessing({ noTransfer: !garmin.data.connected });
-		} catch (e: any) {
-			errorMsg = e?.message ?? String(e);
-		} finally {
-			submitting = false;
-		}
+		})();
 	}
 
 	async function handleSearch(query: string) {
@@ -193,24 +194,27 @@
 		selectedUrls = next;
 	}
 
-	async function handleAddSelected() {
+	function handleAddSelected() {
 		if (selectedUrls.size === 0) return;
-		submitting = true;
-		errorMsg = '';
-		try {
-			const result = await addToQueue([...selectedUrls], contentType);
-			if (result.skipped.length > 0 && result.added.length === 0) {
-				errorMsg = `Skipped (already exists): ${result.skipped.join(', ')}`;
-			} else {
-				dismissResults();
-				urlInput = '';
+
+		const urls = [...selectedUrls];
+		const ct = contentType;
+		const noTransfer = !garmin.data.connected;
+		dismissResults();
+		urlInput = '';
+
+		void (async () => {
+			try {
+				const result = await addToQueue(urls, ct);
+				if (result.skipped.length > 0 && result.added.length === 0) {
+					addToast(`Skipped (already exists): ${result.skipped.join(', ')}`, 'warning');
+					return;
+				}
+				startProcessing({ noTransfer });
+			} catch (e: any) {
+				addToast(e?.message ?? String(e), 'error');
 			}
-			startProcessing({ noTransfer: !garmin.data.connected });
-		} catch (e: any) {
-			errorMsg = e?.message ?? String(e);
-		} finally {
-			submitting = false;
-		}
+		})();
 	}
 
 	function handleBackToSearch() {
@@ -231,13 +235,12 @@
 
 	const buttonLabel = $derived(
 		searching ? 'Searching...'
-		: submitting ? 'Adding...'
 		: looksLikeUrl(urlInput) ? '+ Add'
 		: 'Search'
 	);
 
 	const buttonDisabled = $derived(
-		submitting || searching || urlInput.trim().length === 0
+		searching || urlInput.trim().length === 0
 	);
 </script>
 
@@ -247,11 +250,11 @@
 		bind:value={urlInput}
 		placeholder="Paste YouTube URL(s) or search..."
 		rows="1"
-		disabled={submitting || searching}
+		disabled={searching}
 		onkeydown={handleKeydown}
 	></textarea>
 	<div class="form-row">
-		<ContentTypeSelect bind:value={contentType} disabled={submitting || searching} />
+		<ContentTypeSelect bind:value={contentType} disabled={searching} />
 		<button class="btn btn-primary" type="submit" disabled={buttonDisabled}>
 			{buttonLabel}
 		</button>
@@ -277,7 +280,7 @@
 			{/if}
 			{#if selectedUrls.size > 0}
 				<div class="header-actions">
-					<button class="btn btn-sm btn-primary" onclick={handleAddSelected} disabled={submitting}>
+					<button class="btn btn-sm btn-primary" onclick={handleAddSelected}>
 						Add ({selectedUrls.size})
 					</button>
 				</div>
