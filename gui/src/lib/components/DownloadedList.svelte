@@ -165,6 +165,41 @@
 		return section.groups.reduce((sum, g) => sum + g.episodes.length, 0) + section.ungrouped.length;
 	}
 
+	function sectionEpisodeIds(section: Section): string[] {
+		const ids: string[] = [];
+		for (const group of section.groups) {
+			for (const ep of group.episodes) ids.push(ep.video_id);
+		}
+		for (const ep of section.ungrouped) ids.push(ep.video_id);
+		return ids;
+	}
+
+	function groupEpisodeIds(group: ShowGroup): string[] {
+		return group.episodes.map(ep => ep.video_id);
+	}
+
+	function toggleSectionSelection(section: Section) {
+		const ids = sectionEpisodeIds(section);
+		const allSelected = ids.length > 0 && ids.every(id => selectedIds.has(id));
+		if (allSelected) {
+			for (const id of ids) selectedIds.delete(id);
+		} else {
+			for (const id of ids) selectedIds.add(id);
+		}
+		selectedIds = new Set(selectedIds);
+	}
+
+	function toggleGroupSelection(group: ShowGroup) {
+		const ids = groupEpisodeIds(group);
+		const allSelected = ids.length > 0 && ids.every(id => selectedIds.has(id));
+		if (allSelected) {
+			for (const id of ids) selectedIds.delete(id);
+		} else {
+			for (const id of ids) selectedIds.add(id);
+		}
+		selectedIds = new Set(selectedIds);
+	}
+
 	function formatSize(bytes: number): string {
 		const mb = bytes / 1_000_000;
 		return mb < 1 ? `${(bytes / 1000).toFixed(0)} KB` : `${mb.toFixed(1)} MB`;
@@ -324,6 +359,21 @@
 {:else}
 	{#if selectMode}
 		<div class="select-bar">
+			<label class="select-all">
+				<input
+					type="checkbox"
+					checked={selectedIds.size === visibleEpisodes.length && visibleEpisodes.length > 0}
+					indeterminate={selectedIds.size > 0 && selectedIds.size < visibleEpisodes.length}
+					onchange={() => {
+						if (selectedIds.size === visibleEpisodes.length) {
+							selectedIds = new Set();
+						} else {
+							selectedIds = new Set(visibleEpisodes.map(ep => ep.video_id));
+						}
+					}}
+				/>
+				All
+			</label>
 			<button class="btn btn-danger" onclick={handleBatchDelete} disabled={selectedIds.size === 0}>
 				Delete ({selectedIds.size})
 			</button>
@@ -335,23 +385,62 @@
 		</div>
 	{/if}
 	{#each sections as section (section.label)}
-		<button class="section-header" onclick={() => toggleSection(section.label)}>
-			<span class="chevron" class:collapsed={collapsedSections.has(section.label)}>{'\u25BE'}</span>
-			{section.label}
-			<span class="section-count">{sectionEpisodeCount(section)}</span>
-		</button>
+		{#if selectMode}
+			{@const sIds = sectionEpisodeIds(section)}
+			{@const sSelected = sIds.filter(id => selectedIds.has(id)).length}
+			<div class="section-header">
+				<input
+					type="checkbox"
+					checked={sSelected === sIds.length && sIds.length > 0}
+					indeterminate={sSelected > 0 && sSelected < sIds.length}
+					onchange={() => toggleSectionSelection(section)}
+				/>
+				<button class="header-collapse-btn" onclick={() => toggleSection(section.label)}>
+					<span class="chevron" class:collapsed={collapsedSections.has(section.label)}>{'\u25BE'}</span>
+					{section.label}
+					<span class="section-count">{sectionEpisodeCount(section)}</span>
+				</button>
+			</div>
+		{:else}
+			<button class="section-header" onclick={() => toggleSection(section.label)}>
+				<span class="chevron" class:collapsed={collapsedSections.has(section.label)}>{'\u25BE'}</span>
+				{section.label}
+				<span class="section-count">{sectionEpisodeCount(section)}</span>
+			</button>
+		{/if}
 
 		{#if !collapsedSections.has(section.label)}
 			{#each section.groups as group (group.showName)}
 				<div class="show-group">
-					<button class="show-header" onclick={() => toggleGroup(group.showName)}>
-						<span class="chevron" class:collapsed={collapsedGroups.has(group.showName)}>{'\u25BE'}</span>
-						{group.showName}
-						<span class="show-meta">
-							{group.episodes.length} {group.episodes.length === 1 ? 'episode' : 'episodes'}
-							- {formatSize(group.totalSize)}
-						</span>
-					</button>
+					{#if selectMode}
+						{@const gIds = groupEpisodeIds(group)}
+						{@const gSelected = gIds.filter(id => selectedIds.has(id)).length}
+						<div class="show-header" style:align-items="center">
+							<input
+								type="checkbox"
+								checked={gSelected === gIds.length && gIds.length > 0}
+								indeterminate={gSelected > 0 && gSelected < gIds.length}
+								onchange={() => toggleGroupSelection(group)}
+							/>
+							<button class="header-collapse-btn" onclick={() => toggleGroup(group.showName)}>
+								<span class="chevron" class:collapsed={collapsedGroups.has(group.showName)}>{'\u25BE'}</span>
+								{group.showName}
+								<span class="show-meta">
+									{group.episodes.length} {group.episodes.length === 1 ? 'episode' : 'episodes'}
+									- {formatSize(group.totalSize)}
+								</span>
+							</button>
+						</div>
+					{:else}
+						<button class="show-header" onclick={() => toggleGroup(group.showName)}>
+							<span class="chevron" class:collapsed={collapsedGroups.has(group.showName)}>{'\u25BE'}</span>
+							{group.showName}
+							<span class="show-meta">
+								{group.episodes.length} {group.episodes.length === 1 ? 'episode' : 'episodes'}
+								- {formatSize(group.totalSize)}
+							</span>
+						</button>
+					{/if}
 					{#if !collapsedGroups.has(group.showName)}
 						{#each group.episodes as ep (ep.video_id)}
 							{@render episodeRow(ep)}
@@ -404,6 +493,24 @@
 	}
 	.section-header:hover {
 		color: var(--color-text-secondary);
+	}
+	.header-collapse-btn {
+		display: flex;
+		align-items: inherit;
+		gap: inherit;
+		flex: 1;
+		background: none;
+		border: none;
+		font: inherit;
+		letter-spacing: inherit;
+		text-transform: inherit;
+		color: inherit;
+		padding: 0;
+		cursor: pointer;
+		text-align: left;
+	}
+	.header-collapse-btn:hover {
+		color: var(--color-primary);
 	}
 	.section-count {
 		font-weight: 400;

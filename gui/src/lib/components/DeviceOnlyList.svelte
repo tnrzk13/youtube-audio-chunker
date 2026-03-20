@@ -93,6 +93,21 @@
 	{/if}
 	{#if selectMode}
 		<div class="select-bar">
+			<label class="select-all">
+				<input
+					type="checkbox"
+					checked={selectedNames.size === deviceOnlyEpisodes.length && deviceOnlyEpisodes.length > 0}
+					indeterminate={selectedNames.size > 0 && selectedNames.size < deviceOnlyEpisodes.length}
+					onchange={() => {
+						if (selectedNames.size === deviceOnlyEpisodes.length) {
+							selectedNames = new Set();
+						} else {
+							selectedNames = new Set(deviceOnlyEpisodes.map(ep => ep.folder_name));
+						}
+					}}
+				/>
+				All
+			</label>
 			<button class="btn btn-danger" onclick={handleBatchRemove} disabled={selectedNames.size === 0 || batchRemoving}>
 				{batchRemoving ? 'Removing...' : `Remove (${selectedNames.size})`}
 			</button>
