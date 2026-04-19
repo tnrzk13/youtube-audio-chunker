@@ -1,5 +1,10 @@
 # youtube-audio-chunker
 
-## Dev server
+## Run (from project root)
 
-Run `cd gui && npm run tauri dev`. `npm run dev` alone is browser-only (no Tauri IPC, no Python sidecar, no Watch access). Keep the `dev` script - tauri invokes it via `beforeDevCommand`.
+- `npm run dev:tauri` - full stack dev (HTTP API + Tauri native with Python sidecar)
+- `npm run dev` - browser-only preview, no Tauri IPC / Watch access
+- `npm run build` - builds the `.deb`, prints a paste-runnable `sudo apt install` hint
+- `npm run gui:install` - installs `gui/` deps
+
+`gui/`'s `dev` script exists because Tauri invokes it via `beforeDevCommand` - keep it.
