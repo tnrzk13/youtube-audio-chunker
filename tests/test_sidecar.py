@@ -26,6 +26,7 @@ from youtube_audio_chunker.sidecar import (
     _handle_list_playlists,
     _handle_list_shows,
     _handle_list_subscriptions,
+    _handle_remove_episode,
     _handle_remove_episodes,
     _handle_remove_from_garmin_batch,
     _handle_rename_show,
@@ -513,6 +514,180 @@ class TestHandleRemoveEpisodes:
         assert result["removed"] == ["d1"]
         assert len(result["failed"]) == 1
         assert result["failed"][0]["folder_name"] == "D1-Folder"
+
+
+class TestHandleRemoveEpisodeCascadesToGarmin:
+    def _library_with(self, synced_at):
+        return Library(
+            queue=[],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id="d1", url="u", title="D1",
+                    folder_name="D1-Folder", chunk_count=1,
+                    total_size_bytes=100, downloaded_at="t",
+                    synced_at=synced_at,
+                ),
+            ],
+        )
+
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount")
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_synced_episode_is_removed_from_watch(
+        self, mock_load, mock_save, mock_rmtree,
+        mock_mount, mock_remove_garmin, tmp_path,
+    ):
+        mock_load.return_value = self._library_with(synced_at="2026-04-19T00:00:00+00:00")
+        mock_mount.return_value = tmp_path
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "D1-Folder").mkdir()
+            result = _handle_remove_episode({"video_id": "d1"})
+
+        assert result == {"removed": "d1"}
+        mock_remove_garmin.assert_called_once_with("D1-Folder", tmp_path)
+
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount")
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_unsynced_episode_does_not_touch_watch(
+        self, mock_load, mock_save, mock_rmtree,
+        mock_mount, mock_remove_garmin, tmp_path,
+    ):
+        mock_load.return_value = self._library_with(synced_at=None)
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "D1-Folder").mkdir()
+            _handle_remove_episode({"video_id": "d1"})
+
+        mock_mount.assert_not_called()
+        mock_remove_garmin.assert_not_called()
+
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount", return_value=None)
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_no_mount_is_silent_skip(
+        self, mock_load, mock_save, mock_rmtree,
+        mock_mount, mock_remove_garmin, tmp_path,
+    ):
+        mock_load.return_value = self._library_with(synced_at="2026-04-19T00:00:00+00:00")
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "D1-Folder").mkdir()
+            result = _handle_remove_episode({"video_id": "d1"})
+
+        assert result == {"removed": "d1"}
+        mock_remove_garmin.assert_not_called()
+
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount")
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_garmin_removal_failure_does_not_abort_delete(
+        self, mock_load, mock_save, mock_rmtree,
+        mock_mount, mock_remove_garmin, tmp_path,
+    ):
+        mock_load.return_value = self._library_with(synced_at="2026-04-19T00:00:00+00:00")
+        mock_mount.return_value = tmp_path
+        mock_remove_garmin.side_effect = Exception("not found on watch")
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "D1-Folder").mkdir()
+            result = _handle_remove_episode({"video_id": "d1"})
+
+        assert result == {"removed": "d1"}
+
+
+class TestHandleRemoveEpisodesCascadesToGarmin:
+    def _library_with_mixed_sync(self):
+        return Library(
+            queue=[],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id="synced", url="u", title="Synced",
+                    folder_name="Synced-Folder", chunk_count=1,
+                    total_size_bytes=100, downloaded_at="t",
+                    synced_at="2026-04-19T00:00:00+00:00",
+                ),
+                DownloadedEpisode(
+                    video_id="unsynced", url="u", title="Unsynced",
+                    folder_name="Unsynced-Folder", chunk_count=1,
+                    total_size_bytes=100, downloaded_at="t",
+                    synced_at=None,
+                ),
+            ],
+        )
+
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount")
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_only_synced_episodes_are_removed_from_watch(
+        self, mock_load, mock_save, mock_rmtree,
+        mock_mount, mock_remove_garmin, tmp_path,
+    ):
+        mock_load.return_value = self._library_with_mixed_sync()
+        mock_mount.return_value = tmp_path
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "Synced-Folder").mkdir()
+            (tmp_path / "Unsynced-Folder").mkdir()
+            result = _handle_remove_episodes({"video_ids": ["synced", "unsynced"]})
+
+        assert set(result["removed"]) == {"synced", "unsynced"}
+        mock_remove_garmin.assert_called_once_with("Synced-Folder", tmp_path)
+
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount")
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_no_synced_episodes_skips_mount_check(
+        self, mock_load, mock_save, mock_rmtree, mock_mount, tmp_path,
+    ):
+        library = Library(
+            queue=[],
+            downloaded=[
+                DownloadedEpisode(
+                    video_id="d1", url="u", title="D1",
+                    folder_name="D1-Folder", chunk_count=1,
+                    total_size_bytes=100, downloaded_at="t", synced_at=None,
+                ),
+            ],
+        )
+        mock_load.return_value = library
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "D1-Folder").mkdir()
+            _handle_remove_episodes({"video_ids": ["d1"]})
+
+        mock_mount.assert_not_called()
+
+    @patch(f"{SIDECAR_MODULE}.remove_from_garmin")
+    @patch(f"{SIDECAR_MODULE}.find_garmin_mount", return_value=None)
+    @patch(f"{SIDECAR_MODULE}.shutil.rmtree")
+    @patch(f"{SIDECAR_MODULE}.save_library")
+    @patch(f"{SIDECAR_MODULE}.load_library")
+    def test_no_mount_is_silent_skip(
+        self, mock_load, mock_save, mock_rmtree,
+        mock_mount, mock_remove_garmin, tmp_path,
+    ):
+        mock_load.return_value = self._library_with_mixed_sync()
+
+        with patch(f"{SIDECAR_MODULE}.OUTPUT_DIR", tmp_path):
+            (tmp_path / "Synced-Folder").mkdir()
+            (tmp_path / "Unsynced-Folder").mkdir()
+            result = _handle_remove_episodes({"video_ids": ["synced", "unsynced"]})
+
+        assert set(result["removed"]) == {"synced", "unsynced"}
+        mock_remove_garmin.assert_not_called()
 
 
 class TestHandleRemoveFromGarminBatch:

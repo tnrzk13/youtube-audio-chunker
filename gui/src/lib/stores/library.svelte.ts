@@ -42,6 +42,7 @@ export async function addToQueue(urls: string[], contentType: string, showName?:
 export async function removeEpisode(videoId: string) {
 	await call('remove_episode', { videoId });
 	await refreshLibrary();
+	await refreshGarmin();
 }
 
 export async function processQueue(options: {
@@ -90,12 +91,14 @@ export async function cancelAndRemove(videoId: string) {
 export async function removeEpisodes(videoIds: string[]) {
 	await call('remove_episodes', { videoIds });
 	await refreshLibrary();
+	await refreshGarmin();
 }
 
 export async function cancelAndRemoveMultiple(videoIds: string[]) {
 	await call('cancel');
 	await call('remove_episodes', { videoIds });
 	await refreshLibrary();
+	await refreshGarmin();
 }
 
 export async function listShows(): Promise<ShowInfo[]> {

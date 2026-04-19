@@ -343,6 +343,7 @@ def _handle_remove_episode(params: dict) -> dict:
     with _library_lock:
         library = load_library()
         episode_dir = OUTPUT_DIR / _find_folder_name(library, video_id)
+        synced_folder = _find_synced_folder_name(library, video_id)
         remove_episode(library, video_id)
         save_library(library)
 
@@ -350,6 +351,9 @@ def _handle_remove_episode(params: dict) -> dict:
 
     if episode_dir.exists():
         shutil.rmtree(episode_dir)
+
+    if synced_folder:
+        _cascade_remove_from_garmin([synced_folder])
 
     return {"removed": video_id}
 
@@ -365,14 +369,13 @@ def _handle_remove_from_garmin(params: dict) -> dict:
 
 def _handle_remove_episodes(params: dict) -> dict:
     video_ids = params["video_ids"]
+    ids = set(video_ids)
     with _library_lock:
         library = load_library()
-        folder_names = [
-            ep.folder_name
-            for ep in library.downloaded
-            if ep.video_id in set(video_ids)
-        ]
-        remove_episodes(library, set(video_ids))
+        targets = [ep for ep in library.downloaded if ep.video_id in ids]
+        folder_names = [ep.folder_name for ep in targets]
+        synced_folders = [ep.folder_name for ep in targets if ep.synced_at]
+        remove_episodes(library, ids)
         save_library(library)
 
     _record_history_for_ids(video_ids)
@@ -385,6 +388,8 @@ def _handle_remove_episodes(params: dict) -> dict:
                 shutil.rmtree(episode_dir)
             except OSError as exc:
                 failed.append({"folder_name": folder_name, "error": str(exc)})
+
+    _cascade_remove_from_garmin(synced_folders)
 
     return {"removed": video_ids, "failed": failed}
 
@@ -507,6 +512,36 @@ def _find_folder_name(library: Any, video_id: str) -> str:
         if entry.video_id == video_id:
             return ""
     return ""
+
+
+def _find_synced_folder_name(library: Any, video_id: str) -> str | None:
+    for ep in library.downloaded:
+        if ep.video_id == video_id and ep.synced_at:
+            return ep.folder_name
+    return None
+
+
+def _cascade_remove_from_garmin(folder_names: list[str]) -> None:
+    """Best-effort removal of episodes from a connected Garmin watch.
+
+    Runs after the library delete has already succeeded, so failures here
+    (watch disconnected, file already gone) are logged and swallowed rather
+    than bubbled up.
+    """
+    if not folder_names:
+        return
+    try:
+        mount = find_garmin_mount()
+    except Exception as exc:
+        log.warning("Garmin mount lookup failed during cascade removal: %s", exc)
+        return
+    if mount is None:
+        return
+    for name in folder_names:
+        try:
+            remove_from_garmin(name, mount)
+        except Exception as exc:
+            log.warning("Garmin cascade removal failed for %s: %s", name, exc)
 
 
 # --- JSON-RPC I/O ---
