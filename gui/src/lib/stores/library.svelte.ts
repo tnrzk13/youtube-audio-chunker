@@ -1,6 +1,6 @@
 import { call } from '$lib/backend';
 import { setActive } from '$lib/stores/progress.svelte';
-import { getGarminStatus, refreshGarmin } from '$lib/stores/garmin.svelte';
+import { getGarminStatus, refreshGarmin, optimisticallyRemoveFromGarmin } from '$lib/stores/garmin.svelte';
 import type { Library, AddResult, ProcessResult, ShowInfo, ListShowsResult, RenameShowResult, EpisodeUpdates, SearchResult, ChannelVideo, Playlist, AuthStatus } from '$lib/types';
 
 let library = $state<Library>({ queue: [], downloaded: [] });
@@ -39,9 +39,18 @@ export async function addToQueue(urls: string[], contentType: string, showName?:
 	return result;
 }
 
+function syncedFoldersFor(videoIds: string[]): string[] {
+	const ids = new Set(videoIds);
+	return library.downloaded
+		.filter(ep => ids.has(ep.video_id) && ep.synced_at)
+		.map(ep => ep.folder_name);
+}
+
 export async function removeEpisode(videoId: string) {
+	const syncedFolders = syncedFoldersFor([videoId]);
 	await call('remove_episode', { videoId });
 	await refreshLibrary();
+	optimisticallyRemoveFromGarmin(syncedFolders);
 	await refreshGarmin();
 }
 
@@ -89,15 +98,19 @@ export async function cancelAndRemove(videoId: string) {
 }
 
 export async function removeEpisodes(videoIds: string[]) {
+	const syncedFolders = syncedFoldersFor(videoIds);
 	await call('remove_episodes', { videoIds });
 	await refreshLibrary();
+	optimisticallyRemoveFromGarmin(syncedFolders);
 	await refreshGarmin();
 }
 
 export async function cancelAndRemoveMultiple(videoIds: string[]) {
+	const syncedFolders = syncedFoldersFor(videoIds);
 	await call('cancel');
 	await call('remove_episodes', { videoIds });
 	await refreshLibrary();
+	optimisticallyRemoveFromGarmin(syncedFolders);
 	await refreshGarmin();
 }
 

@@ -22,6 +22,16 @@ export async function refreshGarmin() {
 	}
 }
 
+export function optimisticallyRemoveFromGarmin(folderNames: string[]) {
+	if (folderNames.length === 0) return;
+	const toRemove = new Set(folderNames);
+	const removedBytes = status.episodes
+		.filter(ep => toRemove.has(ep.folder_name))
+		.reduce((sum, ep) => sum + ep.total_size_bytes, 0);
+	status.episodes = status.episodes.filter(ep => !toRemove.has(ep.folder_name));
+	status.available_bytes += removedBytes;
+}
+
 export async function removeFromGarmin(folderName: string) {
 	await call('remove_from_garmin', { folderName });
 	await refreshGarmin();
