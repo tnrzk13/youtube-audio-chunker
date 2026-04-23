@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+import unicodedata
 from enum import Enum
 from pathlib import Path
 
@@ -50,6 +51,8 @@ def atomic_write_text(path: Path, text: str) -> None:
 def sanitize_filename(name: str) -> str:
     for ch in FAT32_ILLEGAL_CHARS + FULLWIDTH_ILLEGAL_CHARS:
         name = name.replace(ch, "")
+    name = unicodedata.normalize("NFKD", name)
+    name = re.sub(r"[^\x00-\x7F]", "", name)
     name = name.replace(" ", "-")
     name = re.sub(r"-{2,}", "-", name)
     name = name.strip("-")

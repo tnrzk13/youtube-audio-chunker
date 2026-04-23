@@ -49,6 +49,18 @@ class TestSanitizeFilename:
         assert sanitize_filename("Game Theory #12： The Law") == "Game-Theory-#12-The-Law"
         assert sanitize_filename("What＊Is＊This？") == "WhatIsThis"
 
+    def test_strips_non_ascii_characters(self):
+        assert sanitize_filename("2020 🇺🇸 Amy Eskridge interview") == "2020-Amy-Eskridge-interview"
+
+    def test_strips_emoji_and_collapses_hyphens(self):
+        assert sanitize_filename("Hello 🎵 World 🌍 Test") == "Hello-World-Test"
+
+    def test_transliterates_accented_characters(self):
+        assert sanitize_filename("Café Talk") == "Cafe-Talk"
+
+    def test_strips_non_latin_characters(self):
+        assert sanitize_filename("日本語 Title") == "Title"
+
 
 class TestExtractMetadata:
     @patch("youtube_audio_chunker.downloader.yt_dlp.YoutubeDL")
